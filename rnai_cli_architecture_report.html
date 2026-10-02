@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>รายงานการวิเคราะห์สถาปัตยกรรมระบบ Rnai-CLI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Prompt:wght@300;400;500;600;700&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #0B3945;
+    --primary-light: #165668;
+    --accent: #D77757;
+    --accent-light: #fdf3ee;
+    --dark: #0f172a;
+    --dark-muted: #334155;
+    --light-bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --info: #3b82f6;
+    --radius: 10px;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text-main);
+    background-color: #f1f5f9;
+    line-height: 1.7;
+    font-size: 15px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page-container {
+    max-width: 960px;
+    margin: 30px auto;
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    padding: 48px 56px;
+    border: 1px solid var(--border);
+  }
+
+  /* Header */
+  .header {
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 28px;
+    margin-bottom: 36px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  
+  .brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .brand-icon {
+    width: 38px;
+    height: 38px;
+    background: var(--primary);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 20px;
+    box-shadow: 0 2px 8px rgba(11, 57, 69, 0.3);
+  }
+
+  .brand-dot {
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  .report-title {
+    font-family: 'Prompt', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+
+  .report-subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .meta-box {
+    background: var(--light-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    font-size: 13px;
+    text-align: right;
+    min-width: 220px;
+  }
+
+  .meta-item {
+    margin-bottom: 4px;
+    color: var(--text-muted);
+  }
+
+  .meta-item strong {
+    color: var(--dark);
+    font-weight: 600;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+
+  .badge-primary { background: #e0f2fe; color: #0369a1; }
+  .badge-success { background: #dcfce7; color: #15803d; }
+  .badge-accent { background: var(--accent-light); color: var(--accent); }
+
+  /* Sections */
+  .section {
+    margin-bottom: 36px;
+  }
+
+  .section-title {
+    font-family: 'Prompt', sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-left: 4px solid var(--accent);
+    padding-left: 12px;
+  }
+
+  .section-title .step-num {
+    background: var(--primary-light);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* Grid Layouts */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s;
+  }
+
+  .card-header {
+    font-family: 'Prompt', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--dark);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-accent {
+    border-top: 3px solid var(--accent);
+  }
+
+  .card-primary {
+    border-top: 3px solid var(--primary);
+  }
+
+  .card-success {
+    border-top: 3px solid var(--success);
+  }
+
+  /* Architecture Diagram Box */
+  .arch-container {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: var(--radius);
+    padding: 24px;
+    margin: 20px 0;
+    font-family: 'Fira Code', monospace;
+    font-size: 13.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    border: 1px solid #1e293b;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+  }
+
+  .arch-title {
+    color: #38bdf8;
+    font-weight: 600;
+    margin-bottom: 14px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 15px;
+  }
+
+  /* Tree View */
+  .file-tree {
+    background: var(--light-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    font-family: 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  .file-tree .dir {
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  .file-tree .file {
+    color: var(--dark-muted);
+  }
+
+  .file-tree .desc {
+    color: var(--text-muted);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 13px;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+
+  th {
+    background: var(--primary);
+    color: white;
+    font-family: 'Prompt', sans-serif;
+    font-weight: 500;
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 13.5px;
+  }
+
+  th:first-child { border-top-left-radius: 6px; }
+  th:last-child { border-top-right-radius: 6px; }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tr:nth-child(even) {
+    background: var(--light-bg);
+  }
+
+  /* Highlight & Alert Boxes */
+  .alert-box {
+    border-left: 4px solid var(--info);
+    background: #eff6ff;
+    padding: 14px 18px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+
+  .alert-title {
+    font-family: 'Prompt', sans-serif;
+    font-weight: 600;
+    color: #1e40af;
+    margin-bottom: 4px;
+  }
+
+  .alert-success {
+    border-left-color: var(--success);
+    background: #f0fdf4;
+  }
+  .alert-success .alert-title { color: #166534; }
+
+  .alert-warning {
+    border-left-color: var(--warning);
+    background: #fffbeb;
+  }
+  .alert-warning .alert-title { color: #92400e; }
+
+  /* Footer */
+  .footer {
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+    padding-top: 20px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  code {
+    font-family: 'Fira Code', monospace;
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    border: 1px solid #cbd5e1;
+  }
+
+  ul, ol {
+    padding-left: 22px;
+    margin-bottom: 12px;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  /* Page Break Rules for PDF Export */
+  @media print {
+    body { background: white; }
+    .page-container {
+      box-shadow: none;
+      border: none;
+      padding: 0;
+      max-width: 100%;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-container">
+  
+  <!-- Header -->
+  <header class="header">
+    <div>
+      <div class="brand-logo">
+        <div class="brand-icon">R</div>
+        <div class="brand-dot"></div>
+        <span style="font-family: 'Prompt', sans-serif; font-weight: 700; font-size: 20px; color: var(--primary);">Rnai.io Ecosystem</span>
+      </div>
+      <h1 class="report-title">รายงานการวิเคราะห์และตรวจสอบสถาปัตยกรรมโปรเจกต์ Rnai-CLI</h1>
+      <p class="report-subtitle">Architectural Inspection & Technical Analysis Report</p>
+    </div>
+    <div class="meta-box">
+      <div class="meta-item">วันที่จัดทำ: <strong>20 สิงหาคม 2026</strong></div>
+      <div class="meta-item">เวอร์ชันโปรเจกต์: <strong>0.1.0</strong></div>
+      <div class="meta-item">สภาพแวดล้อม: <strong>macOS / Python 3.9+</strong></div>
+      <span class="badge badge-success">Phase 1 Complete</span>
+      <span class="badge badge-primary">Rnai Agent Architecture</span>
+    </div>
+  </header>
+
+  <!-- Executive Summary -->
+  <section class="section">
+    <h2 class="section-title"><span class="step-num">1</span> 1. ภาพรวมโปรเจกต์ (Project Overview)</h2>
+    <p>
+      <strong>Rnai-CLI</strong> เป็นระบบ AI Agent CLI และ Web Interface ประสิทธิภาพสูง พัฒนาขึ้นเพื่อเป็นส่วนสำคัญในระบบนิเวศ <strong>Rnai.io</strong> โดยจัดอยู่ใน Phase 1 ตามแผนการพัฒนา 3 ระยะ (<strong>Rnai-CLI &rarr; Worker Daemon &rarr; Cowork WebApp</strong>)
+    </p>
+    <br>
+    <div class="grid-3">
+      <div class="card card-primary">
+        <div class="card-header">🤖 Multi-Model Chat & Compare</div>
+        <p style="font-size: 13.5px;">สนทนากับ <code>rnai-llm</code> บน Modal/Rnai.io API และเปรียบเทียบคำตอบและ Latency ร่วมกับ Groq, Gemini, OpenRouter, Cerebras, Mistral, GitHub Models, Ollama</p>
+      </div>
+      <div class="card card-accent">
+        <div class="card-header">🧠 Hybrid Agent System</div>
+        <p style="font-size: 13.5px;">ระบบผสมผสานระหว่าง <strong>Planner Brain</strong> (Groq/Gemini สำหรับวางแผน tool-calling) และ <strong>Voice Refinement</strong> (rnai-llm ปรับบุคลิกภาษาไทย)</p>
+      </div>
+      <div class="card card-success">
+        <div class="card-header">🛠 Background Worker & Web UI</div>
+        <p style="font-size: 13.5px;">คิวงานเบื้องหลังด้วย macOS <code>launchd</code> daemon และ Web UI ในตัวแบบ Zero-Dependency รองรับ PWA บนมือถือและเดสก์ท็อป</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- System Architecture Diagram -->
+  <section class="section">
+    <h2 class="section-title"><span class="step-num">2</span> 2. แผนผังสถาปัตยกรรมระบบ (System Architecture & Operational Flow)</h2>
+    <p>โครงสร้างสถาปัตยกรรมถูกออกแบบในลักษณะ Layered Decoupled Architecture เพื่อให้แต่ละโมดูลทำงานอิสระ มีความปลอดภัยสูง และสลับ Provider ได้อย่างยืดหยุ่น</p>
+    
+    <div class="arch-container">
+      <div class="arch-title">🌐 Rnai-CLI Architectural Operational Flow</div>
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                               USER INTERFACE LAYER                                      │
+│  ┌───────────────────────────┐ ┌───────────────────────────┐ ┌─────────────────────────┐ │
+│  │   Typer CLI (main.py)     │ │ Web UI Server (ui.py)     │ │ Worker Daemon(worker.py)│ │
+│  └─────────────┬─────────────┘ └─────────────┬─────────────┘ └────────────┬────────────┘ │
+└────────────────┼─────────────────────────────┼────────────────────────────┼──────────────┘
+                 │                             │                            │
+                 ▼                             ▼                            ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                CORE AGENT & CONTROL LAYER                               │
+│  ┌───────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                       agent.py (Hybrid Agent Controller)                          │  │
+│  │   • Planner Step: Groq Llama-3.3-70B / Gemini-2.5-Flash (Function Calling)       │  │
+│  │   • Planner Fallback: Groq 429 Rate Limit → Automatic Gemini Switch              │  │
+│  │   • Voice Step: rnai-llm (Rephrase into natural Thai tone via Rnai.io)           │  │
+│  └──────────────────────────────────────────┬────────────────────────────────────────┘  │
+└─────────────────────────────────────────────┼───────────────────────────────────────────┘
+                                              │
+                 ┌────────────────────────────┼────────────────────────────┐
+                 ▼                            ▼                            ▼
+┌───────────────────────────────┐ ┌────────────────────────┐ ┌───────────────────────────┐
+│       PROVIDERS LAYER         │ │      SAFETY & TOOLS    │ │    PLATFORM & BACKEND     │
+│       (providers.py)          │ │       (tools.py)       │ │     (auth.py / config)    │
+│ • Groq / Gemini / OpenRouter  │ │ • web_search (Tavily)  │ │ • Firebase auth           │
+│ • Modal (rnai-llm)            │ │ • read/write_file      │ │ • Mint API Key (rnai_sk_) │
+│ • Tool Call Format Recovery   │ │ • run_command (Confirm)│ │ • Credit check / Quota    │
+│ • Exponential Backoff Retry   │ │ • rnai_skill (Vercel)  │ │ • Session History (JSON)  │
+└───────────────────────────────┘ └────────────────────────┘ └───────────────────────────┘
+    </div>
+  </section>
+
+  <div class="page-break"></div>
+
+  <!-- Detailed File Map -->
+  <section class="section">
+    <h2 class="section-title"><span class="step-num">3</span> 3. โครงสร้างไฟล์และหน้าที่ของแต่ละโมดูล (Module Breakdown)</h2>
+    <div class="file-tree">
+      <div class="dir">Rnai-CLI/</div>
+      <div>├── <span class="file">pyproject.toml</span> <span class="desc"># ตั้งค่า Build System, Dependency (typer, rich, httpx) และ CLI Command Script</span></div>
+      <div>├── <span class="file">requirements.txt</span> <span class="desc"># รายการ Dependency ขั้นต่ำ</span></div>
+      <div>├── <span class="file">install.sh</span> <span class="desc"># Shell script สำหรับติดตั้งโปรเจกต์แบบ Editable mode (pip install -e .)</span></div>
+      <div>├── <span class="file">README.md</span> <span class="desc"># เอกสารแนะนำการติดตั้ง การตั้งค่า Key และตัวอย่างการใช้งาน</span></div>
+      <div>├── <span class="file">Modelfile.v4.1</span> / <span class="file">Modelfile.v4_0.1</span> <span class="desc"># Modelfile สำหรับรัน rnai-llm GGUF บน Ollama</span></div>
+      <div>├── <span class="file">rnai_tools_v1.json</span> <span class="desc"># สัญญาเครื่องมือ 6 ชนิดพร้อม Host Guards สำหรับโปรไฟล์วิจัย</span></div>
+      <div>├── <span class="dir">tests/</span></div>
+      <div>│   └── <span class="file">test_rnai_cli.py</span> <span class="desc"># Test suite ครอบคลุม Config, Agent loop, Auth, Tools และ Worker</span></div>
+      <div>└── <span class="dir">rnai_cli/</span> <span class="desc"># โฟลเดอร์ซอร์สโค้ดหลัก</span></div>
+      <div>    ├── <span class="file">__init__.py</span> <span class="desc"># Package Initializer (v0.1.0)</span></div>
+      <div>    ├── <span class="file">main.py</span> <span class="desc"># CLI Controller (Typer + Rich Interface)</span></div>
+      <div>    ├── <span class="file">config.py</span> <span class="desc"># ระบบจัดการ Configuration (~/.rnai/config.json)</span></div>
+      <div>    ├── <span class="file">auth.py</span> <span class="desc"># Firebase Auth + Rnai.io Platform API & Billing Integration</span></div>
+      <div>    ├── <span class="file">providers.py</span> <span class="desc"># OpenAI-compatible Client, 429 Retry & Tool Call Format Recovery</span></div>
+      <div>    ├── <span class="file">agent.py</span> <span class="desc"># Hybrid Agent Loop Controller (Planner + Voice Refiner)</span></div>
+      <div>    ├── <span class="file">tools.py</span> <span class="desc"># Agent Tool Implementations & Human-in-the-loop Approval System</span></div>
+      <div>    ├── <span class="file">research_tools.py</span> <span class="desc"># Research Profile Tools + Fading Host Guards (Thesis build)</span></div>
+      <div>    ├── <span class="file">templates.py</span> <span class="desc"># คลัง Prompt Templates งานสำเร็จรูป (Task/Agent/Chat)</span></div>
+      <div>    ├── <span class="file">history.py</span> <span class="desc"># บันทึกและจัดการประวัติการสนทนา JSON (~/.rnai/history/)</span></div>
+      <div>    ├── <span class="file">worker.py</span> <span class="desc"># Task Scheduler Queue & macOS launchd daemon manager</span></div>
+      <div>    └── <span class="file">ui.py</span> <span class="desc"># Web App Server (ThreadingHTTPServer + PWA support)</span></div>
+    </div>
+  </section>
+
+  <!-- Deep-Dive Section -->
+  <section class="section">
+    <h2 class="section-title"><span class="step-num">4</span> 4. การวิเคราะห์ระบบหลักเชิงลึก (Core Component Analysis)</h2>
+    
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25%;">โมดูล</th>
+          <th style="width: 35%;">หน้าที่หลัก</th>
+          <th style="width: 40%;">การออกแบบสถาปัตยกรรม (Design Patterns)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>main.py</code> / <code>config.py</code></td>
+          <td>CLI Command Controller & Settings Manager</td>
+          <td>ใช้ Typer Command Pattern + Rich Console Render, เก็บ config ที่ <code>~/.rnai/config.json</code> โดยบันทึกเฉพาะค่าที่ต่างจาก default เพื่อความปลอดภัย</td>
+        </tr>
+        <tr>
+          <td><code>auth.py</code></td>
+          <td>Authentication & Rnai.io Platform API</td>
+          <td>ทำ Firebase <code>signInWithPassword</code> นำ Token ไปขอ Mint permanent API Key (<code>rnai_sk_...</code>) และจัดการ <code>platform_chat()</code> กับ Server-side quota fallback</td>
+        </tr>
+        <tr>
+          <td><code>providers.py</code></td>
+          <td>Universal LLM Provider Wrapper</td>
+          <td>OpenAI-Compatible Abstraction Layer, มี Exponential Retry สกัดเวลาจาก <code>Retry-After</code> header และใช้ Regex Tag Parser แกะ Tool Calls ที่หลุดฟอร์แมต</td>
+        </tr>
+        <tr>
+          <td><code>agent.py</code> & <code>tools.py</code></td>
+          <td>Hybrid Agent & Tool System</td>
+          <td><strong>Planner-Voice Architecture</strong>: Groq/Gemini ทำ Function Calling multi-steps + สลับ Fallback ชั่วคราวเมื่อ Groq ล้มเหลว, มี Human-in-the-loop approval</td>
+        </tr>
+        <tr>
+          <td><code>research_tools.py</code></td>
+          <td>Research Profile & Scaffolding Fading</td>
+          <td>มี <code>_guard()</code> บังคับ Fading Level (L1, L2, L3) ในระดับโค้ด ป้องกัน AI Hallucination และบันทึก JSONL Log สำหรับใช้เป็นหลักฐานงานวิจัย</td>
+        </tr>
+        <tr>
+          <td><code>worker.py</code></td>
+          <td>Background Daemon & Task Queue</td>
+          <td>รองรับการตั้งเวลา (daily, every N min, once) มีระบบสกัดเป็น macOS <code>launchd</code> plist และแจ้งเตือนผ่าน OS Notification</td>
+        </tr>
+        <tr>
+          <td><code>ui.py</code></td>
+          <td>Single-File Web App & PWA Server</td>
+          <td>ใช้ <code>ThreadingHTTPServer</code> (Stdlib) ไร้ภาระ Node/NPM มี REST API Endpoint ในตัว พร้อมฝัง Manifest + Service Worker ให้ติดตั้งเป็น PWA ได้</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="alert-box alert-success">
+      <div class="alert-title">💡 ไฮไลท์สถาปัตยกรรมสำคัญ: Hybrid Planner + Voice Paradigm</div>
+      ระบบแยกส่วนการ "วางแผนและคิด" (Planner) ออกจาก "การเรียบเรียงน้ำเสียง" (Voice) อย่างชัดเจน:
+      <ul>
+        <li><strong>Planner</strong>: ใช้โมเดลที่เก่งด้าน Tool-Calling และ Logic (เช่น Llama-3.3-70B บน Groq หรือ Gemini-2.5-Flash) เพื่อทำงานให้เสร็จเร็วที่สุด</li>
+        <li><strong>Voice</strong>: ใช้โมเดล <code>rnai-llm</code> เรียบเรียงผลลัพธ์ดั้งเดิมจาก Planner ให้กลายเป็นภาษาไทยที่เป็นธรรมชาติ สไตล์ Rnai โดยไม่ดัดแปลงตัวเลข ข้อเท็จจริง หรือลิงก์</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Strengths & Recommendations -->
+  <section class="section">
+    <h2 class="section-title"><span class="step-num">5</span> 5. จุดเด่นและข้อเสนอแนะในการพัฒนา (Strengths & Recommendations)</h2>
+    
+    <div class="grid-2">
+      <div class="card card-primary">
+        <div class="card-header">✨ จุดเด่นทางสถาปัตยกรรม (Key Strengths)</div>
+        <ul style="font-size: 13.5px;">
+          <li><strong>Zero-Heavy Dependencies</strong>: ใช้เพียง <code>typer</code>, <code>rich</code>, <code>httpx</code> ติดตั้งง่าย รวดเร็ว และไม่มีปัญหาความขัดแย้งของไลบรารี</li>
+          <li><strong>High Fault Tolerance</strong>: มี Retry ลูปสำหรับ HTTP 429, มี Fallback Planner ข้ามค่าย (Groq &rarr; Gemini) และมี Regex สกัด Tool Call Recovery</li>
+          <li><strong>Layered Security</strong>: กิจกรรมที่แก้ไขระบบ ต้องได้รับการยืนยันจากผู้ใช้ก่อนเสมอ และโหมด Worker เบื้องหลังจะปิด Shell Command โดยอัตโนมัติ</li>
+          <li><strong>Portable Web UI / PWA</strong>: รัน WebApp ได้ทันทีโดยไม่ต้องลง Node.js หรือสร้าง Build Pipeline</li>
+        </ul>
+      </div>
+
+      <div class="card card-accent">
+        <div class="card-header">🚀 ข้อเสนอแนะพัฒนาต่อ (Next Steps)</div>
+        <ul style="font-size: 13.5px;">
+          <li><strong>UI Code Modularization</strong>: แยก HTML/CSS/JS จาก <code>ui.py</code> ออกเป็นไฟล์ static template เพื่อการบำรุงรักษาที่ง่ายขึ้น</li>
+          <li><strong>Server-Sent Events (SSE) Streaming</strong>: เพิ่มระบบ Streaming Response ใน Web UI สำหรับขั้นตอนการคิดของ Agent ให้เห็นภาพแบบ Real-time</li>
+          <li><strong>Linux / Windows Daemon Support</strong>: ขยายระบบตั้งเวลาจาก macOS <code>launchd</code> ให้รองรับ <code>systemd</code> service สำหรับนำไปรันบน Linux Cloud Server</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>รายงานฉบับนี้ถูกสร้างขึ้นโดยอัตโนมัติโดยระบบวิเคราะห์สถาปัตยกรรม Rnai-CLI • Rnai.io Ecosystem Phase 1 Roadmap</p>
+    <p>© 2026 Rnai.io Team. All rights reserved.</p>
+  </footer>
+
+</div>
+
+</body>
+</html>
