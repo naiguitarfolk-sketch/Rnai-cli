@@ -107,6 +107,7 @@
 </head>
 <body>
 <nav>
+  <button id="menubtn" onclick="toggleMobileSidebar()" title="เมนูประวัติและโปรเจกต์">☰</button>
   <div class="brand">
     <svg width="26" height="26" viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#0B3945"/><path d="M196 196v160" stroke="#fff" stroke-width="62" stroke-linecap="round"/><path d="M196 300q0-104 110-104" stroke="#fff" stroke-width="62" stroke-linecap="round" fill="none"/><circle cx="382" cy="196" r="34" fill="#D77757"/></svg>
     ผู้ช่วยเรียนรู้ มสธ. (Student Edition)
@@ -128,6 +129,16 @@
 
 
 <div id="wrap">
+  <div id="sideBackdrop" onclick="closeMobileSidebar()"></div>
+  <div id="side">
+    <button id="newBtn" onclick="newChat()"><span style="font-size:16px">＋</span> สนทนาใหม่</button>
+    <div class="label projlabel">โปรเจกต์
+      <button id="newProj" onclick="openNewProject()" title="เพิ่มโปรเจกต์ใหม่">＋</button>
+    </div>
+    <div id="projects"></div>
+    <div class="label">Recents</div>
+    <div id="recents"></div>
+  </div>
   <div id="main">
     <div id="chat">
       <div id="thread">

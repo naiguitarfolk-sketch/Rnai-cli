@@ -69,9 +69,20 @@ class StudentHandler(BaseHTTPRequestHandler):
                 return self._send_bytes(asset[0], asset[1])
             return self._json({"error": "asset not found"}, 404)
         elif self.path in ("/api/sessions", "/api/history"):
-            return self._json([])
+            return self._json(history.list_sessions())
+        elif self.path.startswith("/api/sessions/"):
+            d = history.load(self.path.rsplit("/", 1)[1])
+            return self._json(d if d else {"error": "not found"}, 200 if d else 404)
+        elif self.path == "/api/projects":
+            cfg = config.load()
+            active = cfg.get("WORKSPACE_DIR")
+            projs = []
+            for p in cfg.get("PROJECTS", []):
+                from pathlib import Path as _P
+                projs.append({"path": p, "name": _P(p).name, "active": p == active,
+                              "exists": _P(p).expanduser().exists()})
+            return self._json({"projects": projs, "active": active})
         elif self.path == "/api/student/status":
-
             st = rtools.load_state()
             return self._json({
                 "student_id": self._get_student_id(),
@@ -90,8 +101,50 @@ class StudentHandler(BaseHTTPRequestHandler):
         else:
             self._json({"error": "not found"}, 404)
 
+    def do_DELETE(self):
+        if self.path.startswith("/api/sessions/"):
+            ok = history.delete(self.path.rsplit("/", 1)[1])
+            self._json({"ok": ok})
+        else:
+            self._json({"error": "not found"}, 404)
+
     def do_POST(self):
-        if self.path == "/api/student/login":
+        if self.path == "/api/projects":
+            try:
+                from pathlib import Path as _P
+                length = int(self.headers.get("Content-Length", 0))
+                req = json.loads(self.rfile.read(length))
+                raw = (req.get("path") or "").strip()
+                if not raw:
+                    return self._json({"ok": False, "error": "path ว่าง"})
+                p = _P(raw).expanduser()
+                if req.get("create"):
+                    p.mkdir(parents=True, exist_ok=True)
+                if not p.exists():
+                    return self._json({"ok": False, "error": f"ไม่พบโฟลเดอร์: {p}"})
+                cfg = config.load()
+                projs = cfg.get("PROJECTS", [])
+                if str(p) not in projs:
+                    projs.insert(0, str(p))
+                cfg["PROJECTS"] = projs
+                cfg["WORKSPACE_DIR"] = str(p)
+                config.save(cfg)
+                return self._json({"ok": True, "path": str(p)})
+            except Exception as e:
+                return self._json({"ok": False, "error": str(e)})
+
+        elif self.path == "/api/projects/remove":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                req = json.loads(self.rfile.read(length))
+                cfg = config.load()
+                cfg["PROJECTS"] = [p for p in cfg.get("PROJECTS", []) if p != req.get("path")]
+                config.save(cfg)
+                return self._json({"ok": True})
+            except Exception as e:
+                return self._json({"ok": False, "error": str(e)})
+
+        elif self.path == "/api/student/login":
             try:
                 length = int(self.headers.get("Content-Length", 0))
                 req = json.loads(self.rfile.read(length))
@@ -152,6 +205,12 @@ class StudentHandler(BaseHTTPRequestHandler):
                     {"role": "user", "content": text}
                 ]
 
+                sid = (req.get("session_id") or "").strip()
+                if not sid:
+                    title = (text[:30] + ("..." if len(text) > 30 else "")).strip()
+                    sid = history.new_session(title, model=arm.ollama_name)
+                history.append(sid, "user", text)
+
                 t0 = time.time()
                 try:
                     # ส่งค่าการสุ่มอย่างชัดแจ้งให้ตรงกับตอนประเมิน (EVAL_OPTIONS)
@@ -165,6 +224,7 @@ class StudentHandler(BaseHTTPRequestHandler):
                         allow_fallback=rmodels.ALLOW_SILENT_FALLBACK,
                     )
                     reply = resp.get("content") or "(ไม่มีคำตอบ)"
+                    history.append(sid, "assistant", reply, model=arm.ollama_name)
                 except Exception as e:
                     # ── เดิมมี fallback ไปยัง auth.platform_chat(text) ตรงนี้ — ถอดออกแล้ว ──
                     # เหตุผลสองข้อ ทั้งคู่ร้ายแรงสำหรับระบบที่ใช้เก็บข้อมูลวิจัย
@@ -183,6 +243,7 @@ class StudentHandler(BaseHTTPRequestHandler):
 
                 return self._json({
                     "reply": reply,
+                    "session_id": sid,
                     # บันทึกให้ชัดว่าคำตอบนี้มาจากโมเดลตัวไหน ภายใต้ค่าการสุ่มอะไร
                     # ถ้าไม่มีข้อมูลนี้ ผลในบทที่ 4 จะแยกไม่ออกว่าตัวเลขของใคร
                     "model": arm.ollama_name,

@@ -104,12 +104,16 @@ async function sendStudentMsg() {
       const res = await fetch('/api/student/chat', {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ message: text, session_id: (typeof sid !== 'undefined' ? sid : '') })
       });
       const data = await res.json();
       wait.parentElement.remove();
+      if (data.session_id) {
+        sid = data.session_id;
+        if (typeof loadRecents === 'function') loadRecents();
+      }
       if (data.reply) {
-        addMsg('bot', data.reply, 'rnai-v4.1 · มสธ.');
+        addMsg('bot', data.reply, (data.model || 'rnai-tutor-v1') + ' · มสธ.');
       } else if (data.error) {
         const err = addMsg('bot', '⚠️ ' + data.error);
         err.classList.add('err');
@@ -235,5 +239,9 @@ async function searchCorpus() {
   }
 }
 
-window.addEventListener('load', loadStudentState);
+window.addEventListener('load', () => {
+  loadStudentState();
+  if (typeof loadProjects === 'function') loadProjects();
+  if (typeof loadRecents === 'function') loadRecents();
+});
 

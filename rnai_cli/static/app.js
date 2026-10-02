@@ -743,7 +743,7 @@ if (input) {
 }
 
 if ($('emptyChips')) renderChips();
-if ($('projList')) loadProjects();
+if ($('projects') || $('projList')) loadProjects();
 if ($('acctTier')) loadAccount();
 
 
