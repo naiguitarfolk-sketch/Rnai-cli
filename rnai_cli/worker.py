@@ -172,6 +172,22 @@ def worker_loop(interval: int = 30) -> None:
 
 
 # ── launchd (daemon จริงบน macOS) ───────────────────────────────────────────
+SYSTEMD_TEMPLATE = """[Unit]
+Description=Rnai Worker Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={python} -m rnai_cli.main worker
+WorkingDirectory={cwd}
+Restart=always
+RestartSec=10
+StandardOutput=append:{log}
+StandardError=append:{log}
+
+[Install]
+WantedBy=default.target
+"""
 PLIST_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -190,19 +206,41 @@ PLIST_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
 
 def install_daemon() -> None:
-    if platform.system() != "Darwin":
-        raise SystemExit("การติดตั้ง daemon อัตโนมัติรองรับเฉพาะ macOS (Linux ใช้ systemd/cron แทน)")
-    PLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
-    PLIST_PATH.write_text(PLIST_TEMPLATE.format(
-        python=sys.executable, cwd=str(Path.home()), log=str(LOG_PATH)))
-    subprocess.run(["launchctl", "unload", str(PLIST_PATH)], capture_output=True)
-    subprocess.run(["launchctl", "load", str(PLIST_PATH)], check=True)
-    console.print(f"[green]✓ ติดตั้ง Worker daemon แล้ว[/green] — ทำงานเบื้องหลังตลอด รวมถึงหลังรีสตาร์ทเครื่อง")
-    console.print(f"[dim]log: {LOG_PATH} · ถอนการติดตั้ง: rnai worker --uninstall[/dim]")
+    sys_name = platform.system()
+    if sys_name == "Darwin":
+        PLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
+        PLIST_PATH.write_text(PLIST_TEMPLATE.format(
+            python=sys.executable, cwd=str(Path.home()), log=str(LOG_PATH)))
+        subprocess.run(["launchctl", "unload", str(PLIST_PATH)], capture_output=True)
+        subprocess.run(["launchctl", "load", str(PLIST_PATH)], check=True)
+        console.print(f"[green]✓ ติดตั้ง Worker daemon แล้ว (macOS launchd)[/green] — ทำงานเบื้องหลังตลอด รวมถึงหลังรีสตาร์ทเครื่อง")
+        console.print(f"[dim]log: {LOG_PATH} · ถอนการติดตั้ง: rnai worker --uninstall[/dim]")
+    elif sys_name == "Linux":
+        SYSTEMD_SERVICE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        SYSTEMD_SERVICE_PATH.write_text(SYSTEMD_TEMPLATE.format(
+            python=sys.executable, cwd=str(Path.home()), log=str(LOG_PATH)))
+        subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
+        subprocess.run(["systemctl", "--user", "enable", "rnai-worker.service"], capture_output=True)
+        subprocess.run(["systemctl", "--user", "start", "rnai-worker.service"], capture_output=True)
+        console.print(f"[green]✓ ติดตั้ง Worker daemon แล้ว (Linux systemd --user)[/green] — ทำงานเบื้องหลังตลอด รวมถึงหลังรีสตาร์ทเครื่อง")
+        console.print(f"[dim]service: {SYSTEMD_SERVICE_PATH} · log: {LOG_PATH} · ถอนการติดตั้ง: rnai worker --uninstall[/dim]")
+    else:
+        raise SystemExit(f"การติดตั้ง daemon อัตโนมัติยังไม่รองรับบนระบบปฏิบัติการ {sys_name} (รองรับ macOS launchd และ Linux systemd)")
 
 
 def uninstall_daemon() -> None:
-    subprocess.run(["launchctl", "unload", str(PLIST_PATH)], capture_output=True)
-    if PLIST_PATH.exists():
-        PLIST_PATH.unlink()
-    console.print("[green]✓ ถอน Worker daemon แล้ว[/green]")
+    sys_name = platform.system()
+    if sys_name == "Darwin":
+        subprocess.run(["launchctl", "unload", str(PLIST_PATH)], capture_output=True)
+        if PLIST_PATH.exists():
+            PLIST_PATH.unlink()
+        console.print("[green]✓ ถอน Worker daemon แล้ว (macOS launchd)[/green]")
+    elif sys_name == "Linux":
+        subprocess.run(["systemctl", "--user", "stop", "rnai-worker.service"], capture_output=True)
+        subprocess.run(["systemctl", "--user", "disable", "rnai-worker.service"], capture_output=True)
+        if SYSTEMD_SERVICE_PATH.exists():
+            SYSTEMD_SERVICE_PATH.unlink()
+        subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
+        console.print("[green]✓ ถอน Worker daemon แล้ว (Linux systemd)[/green]")
+    else:
+        console.print(f"[yellow]ไม่พบการติดตั้ง daemon บนระบบ {sys_name}[/yellow]")

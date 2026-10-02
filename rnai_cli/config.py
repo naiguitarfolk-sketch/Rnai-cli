@@ -24,12 +24,13 @@ DEFAULTS = {
     "GEMINI_MODEL": "gemini-2.5-flash",
     "GROQ_API_KEY": "",
     "GROQ_BASE_URL": "https://api.groq.com/openai/v1",
-    "GROQ_MODEL": "llama-3.3-70b-versatile",
+    "GROQ_MODEL": "qwen/qwen3.6-27b",
     "OPENROUTER_API_KEY": "",
     "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+    "OPENROUTER_MODEL": "openrouter/auto",
     # "openrouter/free" = auto-router ของ OpenRouter เอง เลือกโมเดลฟรีที่เปิดอยู่ให้อัตโนมัติ
     "HF_API_KEY": "",
-    "HF_BASE_URL": "https://api-inference.huggingface.co/v1",
+    "HF_BASE_URL": "https://router.huggingface.co/hf-inference/v1",
     "HF_MODEL": "naiguitarfolk/rnai-llm-v4.1-gguf",
     "CEREBRAS_API_KEY": "",
     "CEREBRAS_BASE_URL": "https://api.cerebras.ai/v1",
@@ -42,6 +43,11 @@ DEFAULTS = {
     "GITHUB_MODEL": "openai/gpt-4o-mini",
     "OLLAMA_BASE_URL": "http://localhost:11434/v1",
     "OLLAMA_MODEL": "rnai",
+    # ── โหมดวิจัย (rnai-student) ──────────────────────────────────────────────
+    # เลือกโมเดลด้วย "key" จากทะเบียนใน research_models.MODELS เท่านั้น
+    # (base | v3 | tutor-v1 | v4.1) — ห้ามใส่ชื่อ Ollama ดิบ ๆ เพราะจะไม่รู้ว่าประเมินแล้วหรือยัง
+    # ดูรายการ: rnai-student models
+    "RESEARCH_MODEL": "tutor-v1",
     # Web search
     "TAVILY_API_KEY": "",
     # Rnai.io backend (สำหรับ tool เรียก skills + login/เครดิต)

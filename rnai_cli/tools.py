@@ -38,9 +38,9 @@ def resolve_path(path: str) -> Path:
 TOOL_SCHEMAS = [
     {"type": "function", "function": {
         "name": "web_search",
-        "description": "Search the web for current information. Use for anything time-sensitive, factual lookups, prices, news, or things you are not sure about.",
+        "description": "Search the web for research papers, articles, news, facts, or current info. ALWAYS use web_search when the user asks to search (ค้นหา/สืบค้น) for topics or research.",
         "parameters": {"type": "object", "properties": {
-            "query": {"type": "string", "description": "Search query"},
+            "query": {"type": "string", "description": "Search query in Thai or English"},
         }, "required": ["query"]},
     }},
     {"type": "function", "function": {
@@ -82,10 +82,10 @@ TOOL_SCHEMAS = [
     }},
     {"type": "function", "function": {
         "name": "rnai_skill",
-        "description": "Call an Rnai.io skill API. Available skills: text-sum (summarize), text-trans (translate), text-rewrite, text-grammar, text-hashtag, text-extract (text -> JSON), text-gen. Input is text, returns the processed result.",
+        "description": "Call an Rnai.io skill API. Use ONLY when specifically summarizing (text-sum), translating (text-trans), rewriting, or extracting structured data from text. The 'text' argument MUST contain the non-empty text content to process.",
         "parameters": {"type": "object", "properties": {
-            "skill": {"type": "string", "description": "Skill id, e.g. text-sum"},
-            "text": {"type": "string", "description": "Input text for the skill"},
+            "skill": {"type": "string", "description": "Skill id: text-sum, text-trans, text-rewrite, text-grammar, text-hashtag, text-extract"},
+            "text": {"type": "string", "description": "The exact text content to be processed by the skill. MUST NOT be empty."},
         }, "required": ["skill", "text"]},
     }},
 ]
@@ -222,7 +222,9 @@ def run_command(command: str, reason: str = "") -> str:
         return f"ERROR: {e}"
 
 
-def rnai_skill(skill: str, text: str) -> str:
+def rnai_skill(skill: str, text: str = "") -> str:
+    if not text or not text.strip():
+        return "ERROR: 'text' parameter is empty. You must provide the non-empty text content to process."
     path = SKILL_PATHS.get(skill)
     if not path:
         return f"ERROR: unknown skill '{skill}'. Available: {', '.join(SKILL_PATHS)}"
@@ -239,7 +241,7 @@ def rnai_skill(skill: str, text: str) -> str:
         r = httpx.post(config.get("RNAI_IO_BASE") + path, json=body,
                        headers={"Authorization": f"Bearer {key}",
                                 "Content-Type": "application/json"},
-                       timeout=60)
+                       timeout=120)
         r.raise_for_status()
         data = r.json()
         return json.dumps(data, ensure_ascii=False)[:6000]
