@@ -40,8 +40,20 @@ class ToolDenied(Exception):
 
 # ── โหลดสัญญาเครื่องมือ ─────────────────────────────────────────────────────
 def load_spec() -> dict:
-    p = Path(config.get("RNAI_TOOLS_SPEC")).expanduser()
-    if not p.exists():
+    val = config.get("RNAI_TOOLS_SPEC")
+    if val:
+        p = Path(val).expanduser()
+    else:
+        repo_spec = Path(__file__).parent.parent / "rnai_tools_v1.json"
+        pkg_spec = Path(__file__).parent / "rnai_tools_v1.json"
+        if repo_spec.is_file():
+            p = repo_spec
+        elif pkg_spec.is_file():
+            p = pkg_spec
+        else:
+            p = Path("rnai_tools_v1.json")
+
+    if not p.is_file():
         raise SystemExit(
             f"ไม่พบสัญญาเครื่องมือที่ {p}\n"
             "ตั้งด้วย: rnai config set RNAI_TOOLS_SPEC /path/to/rnai_tools_v1.json"
@@ -56,8 +68,11 @@ def tool_schemas() -> list:
 
 # ── คลังปิด ─────────────────────────────────────────────────────────────────
 def load_corpus() -> list:
-    p = Path(config.get("RNAI_CORPUS")).expanduser()
-    if not p.exists():
+    val = config.get("RNAI_CORPUS")
+    if not val:
+        return []
+    p = Path(val).expanduser()
+    if not p.is_file():
         return []
     return json.loads(p.read_text(encoding="utf-8")).get("resources", [])
 
