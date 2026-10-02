@@ -68,8 +68,18 @@ def chat(
 
     p = get_provider(model)
     messages = [{"role": "user", "content": prompt}]
-    with console.status(f"[cyan]{p.name}/{p.model} กำลังคิด... (ถ้าโมเดลหลับ รอ ~2 นาที)[/cyan]"):
-        resp = p.chat(messages, max_tokens=max_tokens)
+    try:
+        with console.status(f"[cyan]{p.name}/{p.model} (โมเดลวิจัย มสธ.) กำลังประมวลผลคำตอบ...[/cyan]"):
+            resp = p.chat(messages, max_tokens=max_tokens, timeout=600.0)
+    except httpx.ReadTimeout:
+        console.print("\n[yellow]⚠️ โมเดลวิจัยใช้เวลาประมวลผลนานเกิน 10 นาที (ReadTimeout)[/yellow]")
+        console.print("[dim]💡 กรุณาตรวจสอบสถานะโปรเซส Ollama บนเซิร์ฟเวอร์[/dim]")
+        return
+
+    except Exception as e:
+        console.print(f"\n[red]⚠️ เกิดข้อผิดพลาดในการเรียกโมเดล: {e}[/red]")
+        return
+
     if raw:
         console.print_json(jsonlib.dumps(resp["raw_message"], ensure_ascii=False))
         return
@@ -218,6 +228,21 @@ def ui(
     if remote:
         host = "0.0.0.0"
     serve(port=port, host=host, open_browser=not no_browser)
+
+
+@app.command("student")
+
+def student_cmd(
+    port: int = typer.Option(8766, "--port", "-p", help="พอร์ต HTTP Server สำหรับผู้เรียน"),
+    host: str = typer.Option("0.0.0.0", "--host", "-h", help="IP address ที่ฟัง"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="ไม่เปิดเบราว์เซอร์อัตโนมัติ"),
+):
+    """เปิดระบบผู้ช่วยกำกับกระบวนการเรียนรู้ มสธ. สำหรับนักศึกษา (Student Edition)"""
+    from .student_ui import serve_student
+    serve_student(port=port, host=host, open_browser=not no_browser)
+
+
+
 
 
 

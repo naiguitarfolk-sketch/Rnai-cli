@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>ผู้ช่วยกำกับกระบวนการเรียนรู้ มสธ. (STOU Self-Regulated Learning)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B3945">
+<link rel="stylesheet" href="/style.css">
+<style>
+:root {
+  --brand-ink: #0B3945;
+  --accent: #D77757;
+  --accent-tint: #FDF3EE;
+}
+.student-badge {
+  background: var(--accent-tint);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.st-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.st-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 24px;
+  background: var(--soft);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+.st-btn {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 99px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink2);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: .15s;
+}
+.st-btn:hover {
+  background: var(--hover);
+  border-color: var(--brand-ink);
+  color: var(--brand-ink);
+}
+.st-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.st-modal.show { display: flex; }
+.st-card {
+  background: var(--card);
+  border-radius: 16px;
+  width: 480px;
+  max-width: 92vw;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+.st-card h3 { font-size: 17px; margin-bottom: 8px; color: var(--ink); }
+.st-card p { font-size: 13px; color: var(--sub); margin-bottom: 14px; }
+.st-card input, .st-card textarea, .st-card select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: 13.5px inherit;
+  margin-bottom: 10px;
+  background: var(--page);
+}
+.st-card .btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+.st-card .btns button {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-save { background: var(--brand-ink); color: #fff; }
+.btn-cancel { background: transparent; color: var(--sub); }
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#0B3945"/><path d="M196 196v160" stroke="#fff" stroke-width="62" stroke-linecap="round"/><path d="M196 300q0-104 110-104" stroke="#fff" stroke-width="62" stroke-linecap="round" fill="none"/><circle cx="382" cy="196" r="34" fill="#D77757"/></svg>
+    ผู้ช่วยเรียนรู้ มสธ. (Student Edition)
+  </div>
+  <div class="grow"></div>
+  <button class="student-badge" id="studentLoginBtn" onclick="openModal('loginDlg')">👤 ระบุรหัสนักศึกษา</button>
+  <span class="student-badge" id="studentWeekBadge" style="margin-left:6px;">สัปดาห์ที่ 1 · L1</span>
+  <button id="themebtn" onclick="toggleTheme()" title="สลับโหมดสว่าง/มืด">🌙</button>
+</nav>
+
+
+<div class="st-actions">
+  <button class="st-btn" id="studentActionBarLoginBtn" onclick="openModal('loginDlg')" style="background:var(--accent-tint); color:var(--accent); border-color:var(--accent); font-weight:700;">🔐 เข้าสู่ระบบ (Login)</button>
+  <button class="st-btn" onclick="openModal('goalDlg')">🎯 กำหนดเป้าหมายการเรียน</button>
+  <button class="st-btn" onclick="openModal('progressDlg')">📊 บันทึกความก้าวหน้า</button>
+  <button class="st-btn" onclick="openModal('reflectDlg')">📝 สะท้อนความคิดประจำสัปดาห์</button>
+  <button class="st-btn" onclick="openModal('searchDlg')">📚 ค้นคลังเอกสาร มสธ.</button>
+</div>
+
+
+<div id="wrap">
+  <div id="main">
+    <div id="chat">
+      <div id="thread">
+        <div id="empty">
+          <svg width="56" height="56" viewBox="0 0 512 512" style="margin-bottom:16px"><rect width="512" height="512" rx="116" fill="#0B3945"/><path d="M196 196v160" stroke="#fff" stroke-width="62" stroke-linecap="round"/><path d="M196 300q0-104 110-104" stroke="#fff" stroke-width="62" stroke-linecap="round" fill="none"/><circle cx="382" cy="196" r="34" fill="#D77757"/></svg>
+          <h2>ยินดีต้อนรับสู่ระบบผู้ช่วยเรียนรู้ มสธ.</h2>
+          <p>ระบบพร้อมช่วยเหลือชี้แนะแนวทางการเรียนรู้ด้วยตนเองสำหรับนักศึกษา</p>
+          <div class="chips">
+            <button class="chip" onclick="quickAsk('เริ่มต้นการเรียนสัปดาห์นี้ควรวางแผนอย่างไร')">💡 วางแผนการเรียนประจำสัปดาห์</button>
+            <button class="chip" onclick="quickAsk('ค้นหาแหล่งเรียนรู้และคู่มือชุดวิชา')">📖 ค้นหาคู่มือและชุดวิชา มสธ.</button>
+            <button class="chip" onclick="quickAsk('ขอคำแนะนำในการประเมินตนเองก่อนสอบ')">📝 วิธีประเมินตนเองก่อนสอบ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="composer">
+      <div id="box">
+        <textarea id="input" rows="1" placeholder="พิมพ์ข้อความปรึกษาผู้เรียนรู้ มสธ..."></textarea>
+        <button id="send" onclick="sendStudentMsg()" title="ส่ง">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div id="hint">ระบบจะบันทึกความก้าวหน้าการเรียนรู้เพื่อสนับสนุนงานวิจัยโดยอัตโนมัติ</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: กำหนดเป้าหมาย -->
+<div class="st-modal" id="goalDlg">
+  <div class="st-card">
+    <h3>🎯 บันทึกเป้าหมายการเรียนรู้ (Goal)</h3>
+    <p>กำหนดเป้าหมายที่คุณต้องการบรรลุในสัปดาห์นี้ด้วยตนเอง</p>
+    <input id="gText" placeholder="เช่น อ่านชุดวิชาหน่วยที่ 3 ให้เข้าใจและทำแบบประเมินตนเอง">
+    <input id="gCriterion" placeholder="เกณฑ์การวัดผล เช่น ทำแบบทดสอบหลังเรียนได้คะแนน 80% ขึ้นไป">
+    <input id="gComponent" placeholder="ชุดวิชา / หัวเรื่อง (ระบุหรือไม่ก็ได้)">
+    <div class="btns">
+      <button class="btn-cancel" onclick="closeModal('goalDlg')">ยกเลิก</button>
+      <button class="btn-save" onclick="saveGoal()">บันทึกเป้าหมาย</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: บันทึกความก้าวหน้า -->
+<div class="st-modal" id="progressDlg">
+  <div class="st-card">
+    <h3>📊 บันทึกความก้าวหน้าการเรียน (Progress)</h3>
+    <p>บันทึกกิจกรรมการเรียนรู้ที่ทำสำเร็จแล้ว</p>
+    <input id="pAct" placeholder="กิจกรรม เช่น อ่านเอกสารหน่วยที่ 2 และทำสรุปแผนผังความคิด">
+    <select id="pType">
+      <option value="reading">การอ่านเอกสารชุดวิชา</option>
+      <option value="quiz">การทำแบบทดสอบประจำหน่วย</option>
+      <option value="reflection">การทบทวนประเมินตนเอง</option>
+    </select>
+    <input id="pValue" placeholder="ผลลัพธ์/คะแนน เช่น 9/10 ข้อ หรือ อ่านครบ 40 หน้า">
+    <div class="btns">
+      <button class="btn-cancel" onclick="closeModal('progressDlg')">ยกเลิก</button>
+      <button class="btn-save" onclick="saveProgress()">บันทึกผล</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: สะท้อนความคิด -->
+<div class="st-modal" id="reflectDlg">
+  <div class="st-card">
+    <h3>📝 สะท้อนการเรียนรู้ประจำสัปดาห์ (Reflection)</h3>
+    <p>ประเมินและทบทวนกระบวนการเรียนรู้ของตนเอง</p>
+    <textarea id="rWorked" rows="2" placeholder="สิ่งที่ทำได้ดีในสัปดาห์นี้..."></textarea>
+    <textarea id="rChange" rows="2" placeholder="สิ่งที่ต้องการปรับปรุงหรือพัฒนาในสัปดาห์ถัดไป..."></textarea>
+    <div class="btns">
+      <button class="btn-cancel" onclick="closeModal('reflectDlg')">ยกเลิก</button>
+      <button class="btn-save" onclick="saveReflection()">บันทึกการสะท้อนความคิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: ค้นคลังเอกสาร -->
+<div class="st-modal" id="searchDlg">
+  <div class="st-card">
+    <h3>📚 ค้นหาทรัพยากรเรียนรู้ มสธ. (Closed Corpus)</h3>
+    <p>ค้นหารายชื่อชุดวิชา คู่มือ และทรัพยากรในคลังวิจัย</p>
+    <input id="sQuery" placeholder="พิมพ์คำค้น เช่น สื่อการเรียนรู้, ประเมินตนเอง, การสืบค้น">
+    <div id="sResults" style="max-height:180px; overflow-y:auto; font-size:12.5px; margin:10px 0;"></div>
+    <div class="btns">
+      <button class="btn-cancel" onclick="closeModal('searchDlg')">ปิด</button>
+      <button class="btn-save" onclick="searchCorpus()">ค้นหา</button>
+    </div>
+  </div>
+<!-- Modal: เข้าสู่ระบบนักศึกษา (User + Password) -->
+<div class="st-modal" id="loginDlg">
+  <div class="st-card">
+    <h3>🔐 เข้าสู่ระบบนักศึกษา (Student Login)</h3>
+    <p>กรอกรหัสนักศึกษาและรหัสผ่านเพื่อเข้าใช้งานระบบวิจัย</p>
+    <form onsubmit="event.preventDefault(); performStudentLogin();">
+      <input id="stuUserInput" name="username" placeholder="รหัสนักศึกษา / Username (เช่น 65001234 หรือ STU-001)" autocomplete="username">
+      <input id="stuPassInput" name="password" type="password" placeholder="รหัสผ่าน (Password)" autocomplete="current-password">
+      <div id="loginErrMsg" style="color:#d9534f; font-size:12px; display:none; margin-bottom:8px;"></div>
+      <div class="btns">
+        <button type="button" class="btn-cancel" onclick="closeModal('loginDlg')">ยกเลิก</button>
+        <button type="submit" class="btn-save">เข้าสู่ระบบ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+
+<script src="/app.js"></script>
+<script src="/student.js"></script>
+</body>
+</html>
+

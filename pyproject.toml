@@ -11,6 +11,8 @@ dependencies = [
 
 [project.scripts]
 rnai = "rnai_cli.main:app"
+rnai-student = "rnai_cli.student_main:app"
+
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -18,3 +20,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["rnai_cli*"]
+
+[tool.setuptools.package-data]
+rnai_cli = ["static/*", "prompts/*.txt"]
+

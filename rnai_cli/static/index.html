@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Rnai</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B3945">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rnai">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%230B3945'/%3E%3Cpath d='M196 196v160' stroke='%23fff' stroke-width='62' stroke-linecap='round'/%3E%3Cpath d='M196 300q0-104 110-104' stroke='%23fff' stroke-width='62' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='382' cy='196' r='34' fill='%23D77757'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%230B3945'/%3E%3Cpath d='M196 196v160' stroke='%23fff' stroke-width='62' stroke-linecap='round'/%3E%3Cpath d='M196 300q0-104 110-104' stroke='%23fff' stroke-width='62' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='382' cy='196' r='34' fill='%23D77757'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <button id="menubtn" onclick="toggleMobileSidebar()" title="เมนูประวัติและโปรเจกต์">☰</button>
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#0B3945"/><path d="M196 196v160" stroke="#fff" stroke-width="62" stroke-linecap="round"/><path d="M196 300q0-104 110-104" stroke="#fff" stroke-width="62" stroke-linecap="round" fill="none"/><circle cx="382" cy="196" r="34" fill="#D77757"/></svg>
+    Rnai
+  </div>
+  <a href="#" onclick="showChat();return false">Chat</a>
+  <a href="#" onclick="showWorkspace();return false">Workspace</a>
+  <a href="#" onclick="showSettings();return false">Settings</a>
+  <a href="#" onclick="openAccount();return false" style="color:var(--brand-ink);font-weight:600">🔑 Login</a>
+  <a href="#" onclick="showDownload();return false">Download</a>
+  <a href="https://rnai-io.vercel.app" target="_blank">Rnai.io</a>
+  <div class="grow"></div>
+  <button id="acctBtn" onclick="openAccount()" title="บัญชี Rnai.io — เข้าสู่ระบบเพื่อดูเครดิต">🔌 เข้าสู่ระบบ Rnai.io</button>
+  <button id="themebtn" onclick="toggleTheme()" title="สลับโหมดสว่าง/มืด">🌙</button>
+  <select id="model">
+    <option value="ollama">Ollama: rnai-llm (Local Machine)</option>
+    <option value="rnai">rnai-llm (Rnai.io Cloud)</option>
+    <option value="gemini">Gemini (Google AI Studio)</option>
+    <option value="groq">Groq (Llama-3.3)</option>
+    <option value="openrouter">OpenRouter (Free Models)</option>
+    <option value="hf/naiguitarfolk/rnai-llm-v4.1-gguf">Hugging Face: rnai-llm v4.1 GGUF (Cloud)</option>
+    <option value="ollama/hf.co/naiguitarfolk/rnai-llm-v4.1-gguf">Ollama: Direct Hugging Face GGUF</option>
+  </select>
+
+</nav>
+<div id="wrap">
+  <div id="sideBackdrop" onclick="closeMobileSidebar()"></div>
+  <div id="side">
+    <button id="newBtn" onclick="newChat()"><span style="font-size:16px">＋</span> สนทนาใหม่</button>
+    <button id="sideAcctBtn" onclick="openAccount()" style="margin:0 16px 12px;padding:8px 12px;border:1px solid var(--line);background:var(--soft);border-radius:var(--r);font-size:13px;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:6px">🔌 เข้าสู่ระบบ Rnai.io</button>
+    <div class="label projlabel">โปรเจกต์
+      <button id="newProj" onclick="openNewProject()" title="เพิ่มโปรเจกต์ใหม่">＋</button>
+    </div>
+    <div id="projects"></div>
+    <div class="label">Recents</div>
+    <div id="recents"></div>
+  </div>
+  <div id="main">
+    <div id="modebar">
+      <div id="modeswitch">
+        <button class="modebtn chat on" id="mode-chat" onclick="setMode('chat')">💬 Chat</button>
+        <button class="modebtn cowork" id="mode-cowork" onclick="setMode('cowork')">🛠 Cowork</button>
+      </div>
+      <span id="modedesc">คุยกับโมเดลอย่างเดียว — ตอบเร็ว ไม่ใช้เครื่องมือ</span>
+      <div id="folderbar">
+        <div id="folderchip" onclick="openFolder()" title="โฟลเดอร์ทำงานของ agent">
+          📁 <span class="fp" id="folderPath">~/RnaiWorkspace</span>
+        </div>
+      </div>
+    </div>
+    <div id="chat"><div id="thread">
+      <div id="empty">
+        <svg width="56" height="56" viewBox="0 0 512 512" style="margin-bottom:16px"><rect width="512" height="512" rx="116" fill="#0B3945"/><path d="M196 196v160" stroke="#fff" stroke-width="62" stroke-linecap="round"/><path d="M196 300q0-104 110-104" stroke="#fff" stroke-width="62" stroke-linecap="round" fill="none"/><circle cx="382" cy="196" r="34" fill="#D77757"/></svg>
+        <h2 id="emptyTitle">คุยกับ Rnai ได้เลย</h2>
+        <p id="emptyDesc">โมเดลของคุณเอง รันบนเครื่อง ประวัติเก็บในเครื่อง</p>
+        <div class="chips" id="emptyChips"></div>
+      </div>
+    </div></div>
+    <div id="composer">
+      <div id="box">
+        <button id="attach" onclick="toggleAttach(event)" title="แนบไฟล์/โฟลเดอร์จาก workspace">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M21 12.5l-8 8a5 5 0 01-7-7l8-8a3.5 3.5 0 015 5l-8 8a2 2 0 01-3-3l7.5-7.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <textarea id="input" rows="1" placeholder="พิมพ์ข้อความถึง Rnai..."></textarea>
+        <button id="send" onclick="send()" title="ส่ง">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div id="attachpop">
+        <div class="aptabs">
+          <button class="aptab on" id="aptab-ws" onclick="apSetSrc('ws')">📂 โฟลเดอร์ทำงาน</button>
+          <button class="aptab" id="aptab-any" onclick="apSetSrc('any')">🗂 จากที่อื่น</button>
+        </div>
+        <div class="appath"><span id="apdir"></span></div>
+        <div class="apjump"><input id="apInput" placeholder="วาง path ไฟล์/โฟลเดอร์ที่นี่ แล้ว Enter"></div>
+        <div id="aplist"></div>
+      </div>
+      <div id="hint">Enter ส่ง · Shift+Enter ขึ้นบรรทัดใหม่ · ประวัติอยู่ที่ ~/.rnai/history</div>
+    </div>
+  </div>
+  <div id="settings"><div id="setwrap">
+    <h2>Settings</h2>
+    <div class="sub">API keys และการตั้งค่า — บันทึกที่ ~/.rnai/config.json บนเครื่องคุณเท่านั้น</div>
+    <div id="setlist"></div>
+  </div></div>
+  <div id="ws"><div id="wswrap">
+    <div class="wshead">
+      <h2>Workspace</h2>
+      <p>เลือกงานสำเร็จรูปจากคลัง แล้วสั่งทำทันทีหรือตั้งเวลาให้ Worker รันอัตโนมัติ</p>
+    </div>
+
+    <div class="wssection">
+      <div class="wstitle"><span>📋 คลัง Templates</span>
+        <span class="wscount" id="tplCount"></span></div>
+      <div id="tplform"></div>
+      <div id="tpllist"></div>
+    </div>
+
+    <div class="wssection">
+      <div class="wstitle"><span>⏰ งานในคิว Worker</span>
+        <span class="wscount" id="taskCount"></span></div>
+      <div class="wsnote">Worker ต้องทำงานอยู่จึงจะรันตามเวลา — ติดตั้งครั้งเดียว: <code>rnai worker --install</code></div>
+      <div id="tasklist"></div>
+    </div>
+  </div></div>
+  <div id="download"><div id="dlwrap">
+    <svg width="64" height="64" viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#0B3945"/><path d="M196 196v160" stroke="#fff" stroke-width="62" stroke-linecap="round"/><path d="M196 300q0-104 110-104" stroke="#fff" stroke-width="62" stroke-linecap="round" fill="none"/><circle cx="382" cy="196" r="34" fill="#D77757"/></svg>
+    <h2>Download Rnai-CLI</h2>
+    <div class="ostabs">
+      <button class="ostab on" id="os-mac" onclick="setOS('mac')">macOS</button>
+      <button class="ostab" id="os-linux" onclick="setOS('linux')">Linux</button>
+      <button class="ostab" id="os-win" onclick="setOS('win')">Windows</button>
+    </div>
+    <div class="codebox"><span id="dlcmd">curl -fsSL https://raw.githubusercontent.com/Rnai-io/Rnai-CLI/main/install.sh | sh</span>
+      <button class="copybtn" onclick="copyCmd(this)">Copy</button>
+    </div>
+    <div class="dlcaption" id="dlcap">วางคำสั่งนี้ใน Terminal</div>
+    <div class="dlor">หรือ</div>
+    <a class="dlbtn" href="https://github.com/Rnai-io/Rnai-CLI/archive/refs/heads/main.zip">Download Source (.zip)</a>
+    <div class="dlnote">
+      ต้องมี Python 3.9+ ในเครื่อง · ติดตั้งแล้วเริ่มที่ <code>rnai --help</code><br>
+      เปิดหน้าจอนี้ได้ทุกเมื่อด้วย <code>rnai ui</code> · ตั้งค่า API keys ที่แท็บ Settings
+    </div>
+  </div></div>
+</div>
+<div id="folderdlg">
+  <div class="fdcard">
+    <h3>📁 โฟลเดอร์ทำงาน</h3>
+    <p>Cowork จะอ่าน/เขียนไฟล์อ้างอิงจากโฟลเดอร์นี้ (เหมือนเปิดโปรเจกต์ใน IDE)</p>
+    <input id="fdInput" placeholder="~/RnaiWorkspace หรือ /Users/you/projects/myapp">
+    <label class="row"><input type="checkbox" id="fdCreate"> สร้างโฟลเดอร์นี้ถ้ายังไม่มี</label>
+    <div class="files" id="fdFiles"></div>
+    <div id="fdmsg"></div>
+    <div class="actions">
+      <button class="fd-cancel" onclick="$('folderdlg').classList.remove('show')">ยกเลิก</button>
+      <button class="fd-save" onclick="saveFolder()">ใช้โฟลเดอร์นี้</button>
+    </div>
+  </div>
+</div>
+<div id="accountdlg">
+  <div class="fdcard" id="acLoginCard">
+    <form onsubmit="doLogin(); return false;">
+      <h3>🔌 เชื่อมต่อบัญชี Rnai.io</h3>
+      <p>เข้าสู่ระบบเพื่อดูเครดิตคงเหลือ และให้ agent เรียก skills ผ่านเครดิตของคุณ — ระบบจะสร้าง API key ให้อัตโนมัติ ไม่ต้องเข้าเว็บไปสร้างเอง</p>
+      <input id="acEmail" type="email" placeholder="อีเมล Rnai.io" autocomplete="email">
+      <input id="acPassword" type="password" placeholder="รหัสผ่าน" autocomplete="current-password">
+      <div id="acmsg"></div>
+      <div class="actions">
+        <button type="button" class="fd-cancel" onclick="$('accountdlg').classList.remove('show')">ยกเลิก</button>
+        <button type="submit" class="fd-save" id="acLoginBtn">เข้าสู่ระบบ</button>
+      </div>
+    </form>
+  </div>
+  <div class="fdcard" id="acAccountCard" style="display:none">
+    <h3>🔌 บัญชี Rnai.io</h3>
+    <p id="acEmailLabel"></p>
+    <div class="acct-credits" id="acCreditsBox">กำลังโหลดเครดิต...</div>
+    <div class="actions">
+      <button class="fd-cancel" onclick="$('accountdlg').classList.remove('show')">ปิด</button>
+    </div>
+  </div>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

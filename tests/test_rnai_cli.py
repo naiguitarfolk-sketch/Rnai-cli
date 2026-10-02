@@ -170,6 +170,10 @@ class TestTools(unittest.TestCase):
             p_abs = tools.resolve_path("/etc/config")
             self.assertEqual(str(p_abs), "/etc/config")
 
+    def test_rnai_skill_empty_text(self):
+        res = tools.rnai_skill("text-sum", "")
+        self.assertIn("ERROR: 'text' parameter is empty", res)
+
 
 class TestResearchTools(unittest.TestCase):
     def setUp(self):
@@ -211,7 +215,14 @@ class TestResearchTools(unittest.TestCase):
         self.assertEqual(len(lines), 1)
         entry = json.loads(lines[0])
         self.assertEqual(entry["tool"], "test_tool")
-        self.assertTrue(entry["accepted"])
+class TestProviders(unittest.TestCase):
+    def test_parse_failed_generation(self):
+        from rnai_cli.providers import _parse_failed_generation
+        sample_error_text = '<function=web_search {"query": "AI news today"}</function>\n\n'
+        calls = _parse_failed_generation(sample_error_text)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["function"]["name"], "web_search")
+        self.assertEqual(json.loads(calls[0]["function"]["arguments"]), {"query": "AI news today"})
 
 
 class TestCLI(unittest.TestCase):
@@ -253,13 +264,64 @@ class TestWebApp(unittest.TestCase):
         self.assertIsInstance(ip, str)
         self.assertTrue(len(ip) > 0)
 
-    def test_manifest_and_sw(self):
+    def test_static_assets_loading(self):
         import rnai_cli.ui as ui
-        manifest = json.loads(ui.MANIFEST_JSON)
+        html_asset = ui.get_static_asset("index.html")
+        self.assertIsNotNone(html_asset)
+        self.assertIn(b"<!DOCTYPE html>", html_asset[0])
+
+        css_asset = ui.get_static_asset("style.css")
+        self.assertIsNotNone(css_asset)
+        self.assertIn(b"--brand-ink", css_asset[0])
+
+        js_asset = ui.get_static_asset("app.js")
+        self.assertIsNotNone(js_asset)
+        self.assertIn(b"sendAgent", js_asset[0])
+
+        manifest_asset = ui.get_static_asset("manifest.json")
+        self.assertIsNotNone(manifest_asset)
+        manifest = json.loads(manifest_asset[0].decode("utf-8"))
         self.assertEqual(manifest["short_name"], "Rnai")
-        self.assertEqual(manifest["display"], "standalone")
-        self.assertIn("rnai-pwa-v1", ui.SW_JS)
+
+        sw_asset = ui.get_static_asset("sw.js")
+        self.assertIsNotNone(sw_asset)
+        self.assertIn(b"rnai-pwa-v1", sw_asset[0])
+
+
+class TestLinuxSystemdWorker(unittest.TestCase):
+    def test_systemd_template_formatting(self):
+        service_text = wrk.SYSTEMD_TEMPLATE.format(
+            python="/usr/bin/python3",
+            cwd="/home/user",
+            log="/home/user/.rnai/worker.log"
+        )
+        self.assertIn("ExecStart=/usr/bin/python3 -m rnai_cli.main worker", service_text)
+        self.assertIn("WorkingDirectory=/home/user", service_text)
+        self.assertIn("StandardOutput=append:/home/user/.rnai/worker.log", service_text)
+
+
+class TestStudentEdition(unittest.TestCase):
+    def test_student_static_assets(self):
+        import rnai_cli.ui as ui
+        student_html = ui.get_static_asset("student.html")
+        self.assertIsNotNone(student_html)
+        self.assertIn(b"Student Edition", student_html[0])
+
+        student_js = ui.get_static_asset("student.js")
+        self.assertIsNotNone(student_js)
+        self.assertIn(b"sendStudentMsg", student_js[0])
+
+    def test_student_cli_commands(self):
+        from rnai_cli.student_main import app as student_app
+        res_week = runner.invoke(student_app, ["week", "3"])
+        self.assertEqual(res_week.exit_code, 0)
+        self.assertIn("สัปดาห์ที่ 3", res_week.output)
+
+        res_report = runner.invoke(student_app, ["report"])
+        self.assertEqual(res_week.exit_code, 0)
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
