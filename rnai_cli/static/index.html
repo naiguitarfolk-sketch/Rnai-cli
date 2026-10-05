@@ -23,6 +23,7 @@
   </div>
   <a href="#" onclick="showChat();return false">Chat</a>
   <a href="#" onclick="showWorkspace();return false">Workspace</a>
+  <a href="#" onclick="showDocBox();return false" id="nav-docbox">📁 กล่องเอกสาร</a>
   <a href="#" onclick="showSettings();return false">Settings</a>
   <a href="#" onclick="openAccount();return false" style="color:var(--brand-ink);font-weight:600">🔑 Login</a>
   <a href="#" onclick="showDownload();return false">Download</a>
@@ -61,10 +62,24 @@
       </div>
       <span id="modedesc">คุยกับโมเดลอย่างเดียว — ตอบเร็ว ไม่ใช้เครื่องมือ</span>
       <div id="folderbar">
+        <button id="docboxChip" class="docbox-chip" onclick="showDocBox()" title="เปิดกล่องโฟลเดอร์เอกสารและอัปโหลดไฟล์">
+          📄 <span id="docCountBadge">เอกสาร (0)</span>
+        </button>
         <div id="folderchip" onclick="openFolder()" title="โฟลเดอร์ทำงานของ agent">
           📁 <span class="fp" id="folderPath">~/RnaiWorkspace</span>
         </div>
       </div>
+    </div>
+    <!-- แถบแสดงสถานะโครงการ ความจำนง และ Memory.md -->
+    <div id="projectMemoryBanner">
+      <div class="pm-info">
+        <span class="pm-title" id="pmBannerTitle">โครงการ</span>
+        <span class="pm-badge" id="pmBannerIntent">🎯 ความจำนง</span>
+        <span class="pm-folder" id="pmBannerFolder">📁 ~/RnaiWorkspace</span>
+      </div>
+      <button class="pm-btn" onclick="openMemoryViewer()" title="เปิดดูไฟล์บันทึกความจำของโครงการ (Memory.md)">
+        🧠 ดู Memory.md
+      </button>
     </div>
     <div id="chat"><div id="thread">
       <div id="empty">
@@ -75,11 +90,23 @@
       </div>
     </div></div>
     <div id="composer">
+      <div id="micListeningBar" class="mic-listening-bar">
+        <span class="mic-live-dot"></span>
+        <span id="micStatusText">กำลังฟังเสียง... พูดเพื่อแปลงเป็นข้อความ (กดปุ่มไมค์อีกครั้งเพื่อหยุดและตรวจทานก่อนส่ง)</span>
+        <button onclick="toggleVoiceInput()" style="margin-left:auto;border:0;background:transparent;color:inherit;font-size:11.5px;cursor:pointer;text-decoration:underline;">เสร็จสิ้น ✓</button>
+      </div>
       <div id="box">
+        <button id="uploadDocBtn" onclick="triggerDocUpload()" title="อัปโหลดเอกสารเข้ากล่องโฟลเดอร์ (PDF, Word, Excel, CSV, Text)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M7 9l5-5 5 5M4 20h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <input type="file" id="docFileInput" multiple style="display:none" onchange="handleDocFileSelect(event)" accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.tsv,.txt,.md,.json,.py,.html">
         <button id="attach" onclick="toggleAttach(event)" title="แนบไฟล์/โฟลเดอร์จาก workspace">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M21 12.5l-8 8a5 5 0 01-7-7l8-8a3.5 3.5 0 015 5l-8 8a2 2 0 01-3-3l7.5-7.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <textarea id="input" rows="1" placeholder="พิมพ์ข้อความถึง Rnai..."></textarea>
+        <textarea id="input" rows="1" placeholder="พิมพ์ข้อความถึง Rnai... หรือกดไมโครโฟนเพื่อพูด"></textarea>
+        <button id="micBtn" onclick="toggleVoiceInput()" title="เปิดไมโครโฟนพูดเพื่อแปลงเป็นข้อความ (Voice-to-Text)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
         <button id="send" onclick="send()" title="ส่ง">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
@@ -105,6 +132,14 @@
     <div class="wshead">
       <h2>Workspace</h2>
       <p>เลือกงานสำเร็จรูปจากคลัง แล้วสั่งทำทันทีหรือตั้งเวลาให้ Worker รันอัตโนมัติ</p>
+    </div>
+
+    <div class="wssection" id="wsDocCard">
+      <div class="wstitle">
+        <span>📁 กล่องโฟลเดอร์เอกสารสำหรับวิเคราะห์</span>
+        <button class="wsbtn" onclick="showDocBox()" style="border:0;background:var(--soft);color:var(--brand-ink);border-radius:99px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">เปิดกล่องเอกสารเต็มรูปแบบ ›</button>
+      </div>
+      <div id="wsDocMiniList" class="wsdoc-mini"></div>
     </div>
 
     <div class="wssection">
@@ -138,6 +173,62 @@
     <div class="dlnote">
       ต้องมี Python 3.9+ ในเครื่อง · ติดตั้งแล้วเริ่มที่ <code>rnai --help</code><br>
       เปิดหน้าจอนี้ได้ทุกเมื่อด้วย <code>rnai ui</code> · ตั้งค่า API keys ที่แท็บ Settings
+    </div>
+  </div></div>
+
+  <!-- ── Document Hub & Upload Box View ── -->
+  <div id="docview"><div id="docwrap">
+    <div class="dochead">
+      <div class="dochead-top">
+        <h2>📁 กล่องโฟลเดอร์เอกสาร & วิเคราะห์ไฟล์ (Document Hub)</h2>
+        <div class="docpath-badge" onclick="openFolder()" title="เปลี่ยนโฟลเดอร์ทำงานของ Workspace">
+          <span>โฟลเดอร์จัดเก็บ:</span> <code id="docFolderShort">~/RnaiWorkspace/documents</code> ⚙️
+        </div>
+      </div>
+      <p class="dochead-desc">
+        อัปโหลดไฟล์เอกสารต่างๆ (PDF, Word, Excel, CSV, Text) เพื่อให้โมเดลเอเจนอ่าน ศึกษาวิเคราะห์ คำนวณตัวเลขและสถิติ และจัดทำรายงานสรุปตามความต้องการของคุณ
+      </p>
+    </div>
+
+    <!-- Dropzone อัปโหลดเอกสาร -->
+    <div id="docDropzone" class="doc-dropzone" onclick="triggerDocUpload()" ondragover="handleDocDragOver(event)" ondragleave="handleDocDragLeave(event)" ondrop="handleDocDrop(event)">
+      <div class="dz-inner">
+        <div class="dz-icon">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="dz-title">ลากไฟล์เอกสารมาวางในกล่องนี้ หรือ <span class="highlight">คลิกเพื่อเลือกไฟล์</span></div>
+        <div class="dz-sub">รองรับไฟล์หลากหลาย: PDF, Word (.docx), Excel (.xlsx), CSV, Text, JSON (ขนาดสูงสุด 50MB)</div>
+        <div class="dz-badges">
+          <span class="badge pdf">PDF</span>
+          <span class="badge doc">Word (.docx)</span>
+          <span class="badge xls">Excel (.xlsx)</span>
+          <span class="badge csv">CSV / Data</span>
+          <span class="badge txt">Text / MD</span>
+        </div>
+      </div>
+      <div id="docUploadProgress" class="doc-upload-progress" style="display:none">
+        <div class="progress-bar"><div id="docProgressBarFill" class="fill"></div></div>
+        <div id="docProgressStatus">กำลังอัปโหลด...</div>
+      </div>
+    </div>
+
+    <!-- แถบเครื่องมือและค้นหา -->
+    <div class="doc-toolbar">
+      <div class="doc-search-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="docSearch" placeholder="ค้นหาเอกสาร..." oninput="filterDocList(this.value)">
+      </div>
+      <div class="doc-stats" id="docStatsText">0 รายการ</div>
+      <button class="doc-action-btn" onclick="loadDocuments()" title="รีเฟรชเอกสาร">🔄 รีเฟรช</button>
+      <button class="doc-action-btn primary" onclick="triggerDocUpload()">＋ อัปโหลดเอกสาร</button>
+    </div>
+
+    <!-- รายการเอกสารที่อัปโหลด -->
+    <div id="docGrid" class="doc-grid"></div>
+    <div id="docEmptyMsg" class="doc-empty-box" style="display:none">
+      <div class="empty-icon">📂</div>
+      <h3>ยังไม่มีเอกสารในกล่องนี้</h3>
+      <p>ลากไฟล์มาวางที่กล่องด้านบนเพื่ออัปโหลด หรือกดปุ่ม "อัปโหลดเอกสาร" เพื่อเริ่มให้โมเดลเอเจนวิเคราะห์และรายงาน</p>
     </div>
   </div></div>
 </div>
@@ -178,6 +269,183 @@
     </div>
   </div>
 </div>
+
+<!-- Modal ดูตัวอย่างข้อความเอกสาร -->
+<div id="docPreviewModal" class="dlg-backdrop">
+  <div class="fdcard doc-preview-card">
+    <div class="modal-head">
+      <h3 id="prevDocTitle">📄 ตัวอย่างเนื้อหาเอกสาร</h3>
+      <button class="modal-close-btn" onclick="$('docPreviewModal').classList.remove('show')">✕</button>
+    </div>
+    <div class="prev-meta" id="prevDocMeta">กำลังโหลด...</div>
+    <div class="prev-body" id="prevDocBody"></div>
+    <div class="actions">
+      <button class="fd-cancel" onclick="$('docPreviewModal').classList.remove('show')">ปิด</button>
+      <button class="fd-save" id="prevDocAgentBtn" onclick="sendDocToAgentFromPreview()">🤖 ให้โมเดลเอเจนวิเคราะห์ไฟล์นี้</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal สั่งโมเดลเอเจนวิเคราะห์/คำนวณ/รายงานตามความต้องการ -->
+<div id="docPromptModal" class="dlg-backdrop">
+  <div class="fdcard doc-prompt-card">
+    <div class="modal-head">
+      <h3 id="docPromptTitle">🧠 สั่งโมเดลเอเจนวิเคราะห์เอกสาร</h3>
+      <button class="modal-close-btn" onclick="$('docPromptModal').classList.remove('show')">✕</button>
+    </div>
+    <p id="docPromptTargetFile" class="prompt-target">เอกสารเป้าหมาย: <code>-</code></p>
+    <div class="preset-label">เลือกแนวทางการวิเคราะห์สำเร็จรูป:</div>
+    <div class="preset-chips">
+      <button class="pchip on" onclick="selectDocPreset('analyze', this)">📊 วิเคราะห์และคำนวณสถิติ</button>
+      <button class="pchip" onclick="selectDocPreset('summary', this)">📑 สรุปสาระสำคัญ</button>
+      <button class="pchip" onclick="selectDocPreset('report', this)">📋 จัดทำรายงานฉบับสมบูรณ์</button>
+      <button class="pchip" onclick="selectDocPreset('verify', this)">🔍 ตรวจสอบตัวเลข/ข้อเท็จจริง</button>
+    </div>
+    <label class="prompt-req-label">ความต้องการเพิ่มเติมของผู้ใช้งาน (หรือแก้ไขคำสั่งตามความต้องการ):</label>
+    <textarea id="docPromptCustomText" rows="4" placeholder="ระบุสิ่งที่ต้องการให้โมเดลอ่าน วิเคราะห์ คำนวณ หรือจัดรูปแบบรายงาน เช่น เน้นตัวเลขงบประมาณ, คำนวณเปอร์เซ็นต์การเติบโต, สร้างตารางสรุป..."></textarea>
+    <div class="actions">
+      <button class="fd-cancel" onclick="$('docPromptModal').classList.remove('show')">ยกเลิก</button>
+      <button class="fd-save" id="docPromptExecuteBtn" onclick="executeDocAgentTask()">🚀 เริ่มวิเคราะห์ทันที (Cowork Agent)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: สร้างการสนทนาใหม่ & กำหนดความจำนง/บริบท/Memory.md -->
+<div id="newChatIntentModal" class="dlg-backdrop">
+  <div class="fdcard intent-modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 style="font-size:16.5px; font-weight:700; color:var(--ink);">✨ เริ่มต้นการสนทนาใหม่ & บริบทความจำ (New Project & Intent)</h3>
+        <p style="font-size:12px; color:var(--sub); margin-top:2px;">
+          กำหนดความจำนง บริบท และโฟลเดอร์เอกสารเพื่อบันทึกเป็น Recents และสร้าง Memory.md ให้ AI จดจำเป้าหมายต่อเนื่องข้ามวัน
+        </p>
+      </div>
+      <button class="modal-close-btn" onclick="closeIntentModal()">✕</button>
+    </div>
+
+    <div class="intent-modal-body">
+      <!-- ชื่อโปรเจกต์ / การสนทนา -->
+      <div class="intent-input-group">
+        <label>📌 ชื่อหัวข้อการสนทนา / ชื่อโปรเจกต์ (Project Title):</label>
+        <input id="intentProjTitle" placeholder="เช่น โครงการวิเคราะห์ข้อมูล 2026, วิจัยการเรียนรู้ มสธ., พัฒนาเว็บแอป..." oninput="updateIntentFolderSuggestion()">
+      </div>
+
+      <!-- ตารางความจำนงสำเร็จรูป -->
+      <div>
+        <div class="intent-section-title">
+          <span>🎯 ตารางความจำนงสำเร็จรูป (Intent Presets)</span>
+          <span style="font-size:11px; font-weight:400; color:var(--sub);">(คลิกเลือกหมวดที่ตรงกับเป้าหมายงานของคุณ)</span>
+        </div>
+        <div class="intent-grid" id="intentGrid">
+          <div class="intent-card selected" onclick="selectIntentCard(this, '📊 วิจัยและวิเคราะห์ข้อมูล', 'ช่วยอ่าน ศึกษาวิเคราะห์ คำนวณตัวเลขและสถิติจากเอกสาร พร้อมสรุปประเด็นสำคัญ')">
+            <div class="intent-card-header">
+              <span>📊</span> <span>วิจัย & วิเคราะห์ข้อมูล</span>
+            </div>
+            <div class="intent-card-desc">ศึกษาวิเคราะห์ สถิติ ตัวเลข คำนวณผลลัพธ์ และสรุปรายงาน</div>
+          </div>
+          <div class="intent-card" onclick="selectIntentCard(this, '📑 สรุปเอกสารและทำรายงาน', 'ช่วยอ่านและสกัดใจความสำคัญ จัดทำรายงานสรุปผู้บริหาร และจัดหมวดหมู่ข้อมูล')">
+            <div class="intent-card-header">
+              <span>📑</span> <span>สรุปเอกสาร & รายงาน</span>
+            </div>
+            <div class="intent-card-desc">สกัดสาระสำคัญ สรุปหนังสือ รายงานวิชาการ และงานเอกสาร</div>
+          </div>
+          <div class="intent-card" onclick="selectIntentCard(this, '💻 พัฒนาโปรเจกต์และโค้ด', 'ช่วยออกแบบสถาปัตยกรรม เขียนโค้ด รีวิว ปรับปรุงประสิทธิภาพ และแก้ไขข้อผิดพลาด')">
+            <div class="intent-card-header">
+              <span>💻</span> <span>โปรเจกต์โค้ด & ไอที</span>
+            </div>
+            <div class="intent-card-desc">เขียนโปรแกรม ออกแบบสถาปัตยกรรม แก้บั๊ก และพัฒนาซอฟต์แวร์</div>
+          </div>
+          <div class="intent-card" onclick="selectIntentCard(this, '🎓 ติวเตอร์และแผนการเรียนรู้', 'ช่วยวางแผนการเรียนรู้ ทบทวนเนื้อหาบทเรียน อธิบายแนวคิด และประเมินความเข้าใจ')">
+            <div class="intent-card-header">
+              <span>🎓</span> <span>ติวเตอร์ & การศึกษา</span>
+            </div>
+            <div class="intent-card-desc">แนะนำการเรียน วาง Roadmap ทบทวนและเตรียมสอบ</div>
+          </div>
+          <div class="intent-card" onclick="selectIntentCard(this, '🎯 วางแผนกลยุทธ์และธุรกิจ', 'ช่วยวิเคราะห์จุดแข็งจุดอ่อน วางกลยุทธ์ แผนงานโครงการ และการบริหารจัดการ')">
+            <div class="intent-card-header">
+              <span>🎯</span> <span>แผนงาน & ธุรกิจ</span>
+            </div>
+            <div class="intent-card-desc">วางกลยุทธ์ แผนธุรกิจ บริหารโครงการ และการจัดการ</div>
+          </div>
+          <div class="intent-card" onclick="selectIntentCard(this, '✍️ สร้างสรรค์เนื้อหาและบทความ', 'ช่วยร่างบทความ ข่าวสาร งานเขียนเพื่อการสื่อสาร ตรวจไวยากรณ์และขัดเกลาสำนวน')">
+            <div class="intent-card-header">
+              <span>✍️</span> <span>งานเขียน & เนื้อหา</span>
+            </div>
+            <div class="intent-card-desc">เขียนบทความ ร่างอีเมล จดหมายข่าว และการสื่อสาร</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ช่อง Prompt รายละเอียดความต้องการ -->
+      <div class="intent-input-group">
+        <label>💬 Prompt รายละเอียดความต้องการ / วัตถุประสงค์ (Intent Prompt):</label>
+        <textarea id="intentPromptText" rows="3" placeholder="ระบุสิ่งที่ต้องการให้ผู้ช่วย AI เน้นเป็นพิเศษ หรือแนวทางผลลัพธ์ที่ต้องการ...">ช่วยอ่าน ศึกษาวิเคราะห์ คำนวณตัวเลขและสถิติจากเอกสาร พร้อมสรุปประเด็นสำคัญ</textarea>
+      </div>
+
+      <!-- ช่องบริบทและข้อกำหนดโครงการ -->
+      <div class="intent-input-group">
+        <label>📋 บริบทและข้อกำหนดของโครงการ (Project Context & Guidelines):</label>
+        <textarea id="intentContextText" rows="2" placeholder="เช่น กฎเกณฑ์ที่ต้องปฏิบัติตาม, ข้อมูลโครงการ, แหล่งข้อมูลอ้างอิง, รูปแบบผลลัพธ์ที่ต้องส่งมอบ..."></textarea>
+      </div>
+
+      <!-- ที่จัดเก็บเอกสารและสร้าง Memory.md -->
+      <div class="intent-input-group">
+        <label>📁 โฟลเดอร์จัดเก็บเอกสารโครงการ & Memory.md:</label>
+        <input id="intentFolderPath" placeholder="~/RnaiWorkspace/projects/my-project">
+      </div>
+
+      <label class="intent-checkbox-row">
+        <input type="checkbox" id="intentCreateMemory" checked>
+        <span>สร้างโฟลเดอร์โครงการและบันทึกไฟล์ <b>Memory.md</b> เพื่อบันทึกความจำและอัปเดตอัตโนมัติทุกครั้งที่มีการสนทนา</span>
+      </label>
+    </div>
+
+    <!-- Actions -->
+    <div class="intent-actions">
+      <button class="btn-quick-start" onclick="quickStartChat()" title="เริ่มห้องแชททันทีโดยไม่ต้องกำหนดบริบท">
+        ⚡ สนทนาด่วน (ไม่กำหนดบริบท)
+      </button>
+      <div class="intent-right-btns">
+        <button class="fd-cancel" onclick="closeIntentModal()">ยกเลิก</button>
+        <button class="fd-save" id="btnSubmitIntent" onclick="submitNewChatWithIntent()">🚀 เริ่มต้นการสนทนาและสร้าง Memory.md</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal ดูและติดตามไฟล์ Memory.md -->
+<div id="memoryViewerModal" class="dlg-backdrop">
+  <div class="fdcard doc-preview-card" style="width:780px;">
+    <div class="modal-head">
+      <div>
+        <h3 id="memViewTitle">🧠 ไฟล์บันทึกความจำโครงการ (Memory.md)</h3>
+        <p id="memViewSub" style="font-size:12px; color:var(--sub); margin-top:2px;">
+          อัปเดตอัตโนมัติทุกครั้งที่มีการสนทนา เพื่อให้โมเดลจำบริบทได้ต่อเนื่องข้ามวัน
+        </p>
+      </div>
+      <button class="modal-close-btn" onclick="$('memoryViewerModal').classList.remove('show')">✕</button>
+    </div>
+    <div class="prev-meta" id="memViewMeta">กำลังโหลด...</div>
+    <div class="prev-body" id="memViewBody" style="max-height:55vh;"></div>
+    <div class="actions" style="margin-top:12px; display:flex; justify-content:space-between;">
+      <button class="pm-btn" onclick="refreshMemoryViewer()" style="padding:6px 12px;">🔄 ซิงค์ / รีเฟรช</button>
+      <div style="display:flex; gap:8px;">
+        <button class="fd-cancel" onclick="$('memoryViewerModal').classList.remove('show')">ปิด</button>
+        <button class="fd-save" onclick="copyMemoryContent()">📋 คัดลอกเนื้อหา</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Drag-and-drop Overlay สำหรับทั้งหน้าจอ -->
+<div id="dragDropOverlay" class="drag-overlay" ondragover="handleDocDragOver(event)" ondragleave="handleDocDragLeave(event)" ondrop="handleDocDrop(event)">
+  <div class="drag-box">
+    <div class="drag-icon">📥</div>
+    <h2>ปล่อยไฟล์ที่นี่เพื่ออัปโหลดเข้ากล่องเอกสาร</h2>
+    <p>ไฟล์จะถูกบันทึกลงในโฟลเดอร์เอกสารของ Workspace พร้อมให้โมเดลอ่านและวิเคราะห์ทันที</p>
+  </div>
+</div>
+
 <script src="/app.js"></script>
 </body>
 </html>

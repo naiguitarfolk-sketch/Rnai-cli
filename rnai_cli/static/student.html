@@ -121,6 +121,7 @@
 
 <div class="st-actions">
   <button class="st-btn" id="studentActionBarLoginBtn" onclick="openModal('loginDlg')" style="background:var(--accent-tint); color:var(--accent); border-color:var(--accent); font-weight:700;">🔐 เข้าสู่ระบบ (Login)</button>
+  <button class="st-btn" id="stuDocActionBtn" onclick="openStudentDocModal()" style="font-weight:700; color:var(--brand-ink); border-color:var(--brand-ink); background:var(--accent-tint);">📁 กล่องเอกสารการเรียน (<span id="stuDocBadge">0</span>)</button>
   <button class="st-btn" onclick="openModal('goalDlg')">🎯 กำหนดเป้าหมายการเรียน</button>
   <button class="st-btn" onclick="openModal('progressDlg')">📊 บันทึกความก้าวหน้า</button>
   <button class="st-btn" onclick="openModal('reflectDlg')">📝 สะท้อนความคิดประจำสัปดาห์</button>
@@ -140,6 +141,17 @@
     <div id="recents"></div>
   </div>
   <div id="main">
+    <!-- แถบแสดงสถานะโครงการการเรียนรู้ ความจำนง และ Memory.md -->
+    <div id="projectMemoryBanner">
+      <div class="pm-info">
+        <span class="pm-title" id="pmBannerTitle">โครงการการเรียนรู้</span>
+        <span class="pm-badge" id="pmBannerIntent">🎓 วิจัย & ติวเตอร์</span>
+        <span class="pm-folder" id="pmBannerFolder">📁 ~/RnaiWorkspace</span>
+      </div>
+      <button class="pm-btn" onclick="openMemoryViewer()" title="เปิดดูไฟล์บันทึกความจำของโครงการ (Memory.md)">
+        🧠 ดู Memory.md
+      </button>
+    </div>
     <div id="chat">
       <div id="thread">
         <div id="empty">
@@ -155,8 +167,20 @@
       </div>
     </div>
     <div id="composer">
+      <div id="micListeningBar" class="mic-listening-bar">
+        <span class="mic-live-dot"></span>
+        <span id="micStatusText">กำลังฟังเสียง... พูดเพื่อแปลงเป็นข้อความ (กดปุ่มไมค์อีกครั้งเพื่อหยุดและตรวจทานก่อนส่ง)</span>
+        <button onclick="toggleVoiceInput()" style="margin-left:auto;border:0;background:transparent;color:inherit;font-size:11.5px;cursor:pointer;text-decoration:underline;">เสร็จสิ้น ✓</button>
+      </div>
       <div id="box">
-        <textarea id="input" rows="1" placeholder="พิมพ์ข้อความปรึกษาผู้เรียนรู้ มสธ..."></textarea>
+        <button id="stuUploadBtn" onclick="triggerStudentUpload()" title="อัปโหลดเอกสารการเรียน (PDF, Word, Excel, CSV, Text)" style="width:34px;height:34px;border:0;border-radius:99px;background:transparent;color:var(--sub);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M7 9l5-5 5 5M4 20h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <input type="file" id="stuFileInput" multiple style="display:none" onchange="handleStudentFileSelect(event)" accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.tsv,.txt,.md,.json">
+        <textarea id="input" rows="1" placeholder="พิมพ์ข้อความปรึกษาผู้เรียนรู้ มสธ... หรือกดไมโครโฟนเพื่อพูด"></textarea>
+        <button id="micBtn" onclick="toggleVoiceInput()" title="เปิดไมโครโฟนพูดเพื่อแปลงเป็นข้อความ (Voice-to-Text)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
         <button id="send" onclick="sendStudentMsg()" title="ส่ง">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
@@ -226,6 +250,8 @@
       <button class="btn-save" onclick="searchCorpus()">ค้นหา</button>
     </div>
   </div>
+</div>
+
 <!-- Modal: เข้าสู่ระบบนักศึกษา (User + Password) -->
 <div class="st-modal" id="loginDlg">
   <div class="st-card">
@@ -243,7 +269,194 @@
   </div>
 </div>
 
+<!-- Modal: กล่องเอกสารและไฟล์ประกอบการเรียนรู้ (Student Document Hub) -->
+<div class="st-modal" id="stuDocModal">
+  <div class="st-card" style="width:720px; max-width:96vw; max-height:88vh; display:flex; flex-direction:column;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <h3 style="margin-bottom:0;">📁 กล่องเอกสารการเรียนรู้ (Student Document Box)</h3>
+      <button onclick="closeModal('stuDocModal')" style="border:0; background:transparent; font-size:18px; color:var(--sub); cursor:pointer;">✕</button>
+    </div>
+    <p style="margin-bottom:12px;">อัปโหลดเอกสารประกอบการเรียน ใบงาน แบบฝึกหัด หรือตารางข้อมูล เพื่อให้ผู้ช่วย AI อ่าน วิเคราะห์ คำนวณ และสรุปรายงาน</p>
 
+    <!-- Dropzone -->
+    <div id="stuDropzone" class="doc-dropzone" onclick="triggerStudentUpload()" ondragover="handleDocDragOver(event)" ondragleave="handleDocDragLeave(event)" ondrop="handleStudentDocDrop(event)" style="padding:22px 16px; margin-bottom:16px;">
+      <div class="dz-inner">
+        <div class="dz-icon" style="color:var(--brand-ink);">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="dz-title" style="font-size:14.5px;">ลากไฟล์เอกสารมาวางที่นี่ หรือ <span class="highlight">คลิกเพื่อเลือกไฟล์</span></div>
+        <div class="dz-badges" style="margin-top:6px;">
+          <span class="badge pdf">PDF</span>
+          <span class="badge doc">Word (.docx)</span>
+          <span class="badge xls">Excel (.xlsx)</span>
+          <span class="badge csv">CSV / Data</span>
+          <span class="badge txt">Text / MD</span>
+        </div>
+      </div>
+      <div id="stuUploadProgress" class="doc-upload-progress" style="display:none; margin-top:10px;">
+        <div class="progress-bar"><div id="stuProgressBarFill" class="fill"></div></div>
+        <div id="stuProgressStatus" style="font-size:11.5px; color:var(--sub); margin-top:4px;">กำลังอัปโหลด...</div>
+      </div>
+    </div>
+
+    <!-- แถบรายการเอกสาร -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <span style="font-size:13px; font-weight:700; color:var(--ink);">คลังเอกสารในระบบ (<span id="stuDocListCount">0</span> รายการ)</span>
+      <button class="st-btn" onclick="loadStudentDocs()" style="padding:4px 10px; font-size:11.5px;">🔄 รีเฟรช</button>
+    </div>
+
+    <div id="stuDocList" style="flex:1; overflow-y:auto; max-height:42vh; display:flex; flex-direction:column; gap:10px;">
+      <!-- เอกสารจะถูกโหลดมาแสดงที่นี่ -->
+    </div>
+
+    <div class="btns" style="margin-top:14px;">
+      <button class="btn-cancel" onclick="closeModal('stuDocModal')">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: ดูตัวอย่างเอกสารสำหรับนักศึกษา -->
+<div class="st-modal" id="stuPreviewModal">
+  <div class="st-card" style="width:720px; max-width:96vw; max-height:86vh; display:flex; flex-direction:column;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <h3 id="stuPrevTitle" style="margin-bottom:0;">📄 ตัวอย่างเนื้อหาเอกสาร</h3>
+      <button onclick="closeModal('stuPreviewModal')" style="border:0; background:transparent; font-size:18px; color:var(--sub); cursor:pointer;">✕</button>
+    </div>
+    <div id="stuPrevMeta" style="font-size:12px; color:var(--sub); margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--line);">กำลังโหลด...</div>
+    <div id="stuPrevBody" style="flex:1; overflow-y:auto; background:var(--soft); border-radius:10px; padding:12px; font:12.5px/1.6 ui-monospace,monospace; white-space:pre-wrap; word-break:break-word; max-height:55vh; border:1px solid var(--line);"></div>
+    <div class="btns" style="margin-top:12px;">
+      <button class="btn-cancel" onclick="closeModal('stuPreviewModal')">ปิด</button>
+      <button class="btn-save" id="stuPrevAskBtn" onclick="sendDocToStudentChatFromPreview()">📖 ส่งเอกสารนี้ให้ผู้ช่วยเรียนรู้วิเคราะห์</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: สร้างการสนทนาใหม่ & กำหนดความจำนง/บริบท/Memory.md สำหรับนักศึกษา -->
+<div id="newChatIntentModal" class="dlg-backdrop">
+  <div class="fdcard intent-modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 style="font-size:16.5px; font-weight:700; color:var(--ink);">✨ เริ่มต้นการสนทนาใหม่ & บริบทความจำ (Student Project & Intent)</h3>
+        <p style="font-size:12px; color:var(--sub); margin-top:2px;">
+          กำหนดความจำนง บริบท และโฟลเดอร์เอกสารเพื่อบันทึกเป็น Recents และสร้าง Memory.md ให้ AI จดจำเป้าหมายต่อเนื่องข้ามวัน
+        </p>
+      </div>
+      <button class="modal-close-btn" onclick="closeIntentModal()">✕</button>
+    </div>
+
+    <div class="intent-modal-body">
+      <!-- ชื่อโปรเจกต์ / การสนทนา -->
+      <div class="intent-input-group">
+        <label>📌 ชื่อหัวข้อการเรียนรู้ / โปรเจกต์ (Project / Study Title):</label>
+        <input id="intentProjTitle" placeholder="เช่น ศึกษาวิจัยชุดวิชา 99312, แผนเตรียมสอบปลายภาค, โครงการวิเคราะห์สถิติ..." oninput="updateIntentFolderSuggestion()">
+      </div>
+
+      <!-- ตารางความจำนงสำเร็จรูป -->
+      <div>
+        <div class="intent-section-title">
+          <span>🎯 ตารางความจำนงสำเร็จรูป (Intent Presets)</span>
+          <span style="font-size:11px; font-weight:400; color:var(--sub);">(คลิกเลือกหมวดที่ตรงกับเป้าหมายการเรียนรู้)</span>
+        </div>
+        <div class="intent-grid" id="intentGrid">
+          <div class="intent-card selected" onclick="selectIntentCard(this, '🎓 ติวเตอร์และแผนการเรียนรู้', 'ช่วยวางแผนการเรียนรู้ประจำสัปดาห์ แนะนำแนวทางการอ่านหนังสือ และสรุปสาระสำคัญ')">
+            <div class="intent-card-header">
+              <span>🎓</span> <span>ติวเตอร์ & แผนการเรียน</span>
+            </div>
+            <div class="intent-card-desc">วาง Roadmap การศึกษา ทบทวนบทเรียน และเตรียมตัวสอบ</div>
+          </div>
+          <div class="intent-card" onclick="selectIntentCard(this, '📊 วิจัยและวิเคราะห์ข้อมูล', 'ช่วยอ่าน ศึกษาวิเคราะห์ คำนวณตัวเลขและสถิติจากเอกสารและงานวิจัย มสธ.')">
+            <div class="intent-card-header">
+              <span>📊</span> <span>วิจัย & วิเคราะห์สถิติ</span>
+            </div>
+            <div class="intent-card-desc">ศึกษาวิเคราะห์ สถิติ คำนวณผล และสรุปรายงานวิจัย</div>
+          </div>
+          <div class="intent-card" onclick="selectIntentCard(this, '📑 สรุปเอกสารและใบงาน', 'ช่วยอ่านและสกัดใจความสำคัญจากชุดวิชา/เอกสารประกอบการเรียน พร้อมจัดทำแบบฝึกหัด')">
+            <div class="intent-card-header">
+              <span>📑</span> <span>สรุปเอกสาร & ใบงาน</span>
+            </div>
+            <div class="intent-card-desc">สกัดสาระสำคัญ สรุปหนังสือ และแบบฝึกหัดท้ายหน่วย</div>
+          </div>
+          <div class="intent-card" onclick="selectIntentCard(this, '💻 โครงการคอมพิวเตอร์และโค้ด', 'ช่วยออกแบบระบบและโปรเจกต์ เขียนโปรแกรม แก้ไขข้อผิดพลาด และทดสอบโค้ด')">
+            <div class="intent-card-header">
+              <span>💻</span> <span>โปรเจกต์โค้ด & ไอที</span>
+            </div>
+            <div class="intent-card-desc">เขียนโปรแกรม ออกแบบระบบ และพัฒนาโครงงานไอที</div>
+          </div>
+          <div class="intent-card" onclick="selectIntentCard(this, '✍️ รายงานและการเขียนวิชาการ', 'ช่วยตรวจทานโครงสร้างรายงาน การอ้างอิง และขัดเกลาสำนวนภาษาไทยเชิงวิชาการ')">
+            <div class="intent-card-header">
+              <span>✍️</span> <span>รายงาน & ภาษาไทย</span>
+            </div>
+            <div class="intent-card-desc">เขียนบทความ รายงานวิชาการ และการนำเสนอผลงาน</div>
+          </div>
+          <div class="intent-card" onclick="selectIntentCard(this, '🎯 ประเมินตนเองและสะท้อนคิด', 'ช่วยชวนสะท้อนคิด ประเมินจุดเด่นและจุดที่ควรปรับปรุง เพื่อยกระดับการกำกับตนเอง (SRL)')">
+            <div class="intent-card-header">
+              <span>🎯</span> <span>สะท้อนคิด & SRL</span>
+            </div>
+            <div class="intent-card-desc">ประเมินตนเอง ทบทวนการเรียนรู้ และตั้งเป้าหมายต่อเนื่อง</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ช่อง Prompt รายละเอียดความต้องการ -->
+      <div class="intent-input-group">
+        <label>💬 Prompt รายละเอียดความต้องการ / วัตถุประสงค์ (Intent Prompt):</label>
+        <textarea id="intentPromptText" rows="3" placeholder="ระบุสิ่งที่ต้องการให้ผู้ช่วย AI เน้นเป็นพิเศษ หรือแนวทางผลลัพธ์ที่ต้องการ...">ช่วยวางแผนการเรียนรู้ประจำสัปดาห์ แนะนำแนวทางการอ่านหนังสือ และสรุปสาระสำคัญ</textarea>
+      </div>
+
+      <!-- ช่องบริบทและข้อกำหนดโครงการ -->
+      <div class="intent-input-group">
+        <label>📋 บริบทและข้อกำหนดของโครงการ (Project Context & Guidelines):</label>
+        <textarea id="intentContextText" rows="2" placeholder="เช่น รหัสชุดวิชา, ภาคการศึกษา, เป้าหมายคะแนนที่ต้องการ, สัปดาห์ที่กำลังศึกษา..."></textarea>
+      </div>
+
+      <!-- ที่จัดเก็บเอกสารและสร้าง Memory.md -->
+      <div class="intent-input-group">
+        <label>📁 โฟลเดอร์จัดเก็บเอกสารโครงการ & Memory.md:</label>
+        <input id="intentFolderPath" placeholder="~/RnaiWorkspace/student/my-study">
+      </div>
+
+      <label class="intent-checkbox-row">
+        <input type="checkbox" id="intentCreateMemory" checked>
+        <span>สร้างโฟลเดอร์โครงการและบันทึกไฟล์ <b>Memory.md</b> เพื่อบันทึกความจำและอัปเดตอัตโนมัติทุกครั้งที่มีการสนทนา</span>
+      </label>
+    </div>
+
+    <!-- Actions -->
+    <div class="intent-actions">
+      <button class="btn-quick-start" onclick="quickStartChat()" title="เริ่มห้องแชททันทีโดยไม่ต้องกำหนดบริบท">
+        ⚡ สนทนาด่วน (ไม่กำหนดบริบท)
+      </button>
+      <div class="intent-right-btns">
+        <button class="fd-cancel" onclick="closeIntentModal()">ยกเลิก</button>
+        <button class="fd-save" id="btnSubmitIntent" onclick="submitNewChatWithIntent()">🚀 เริ่มต้นการสนทนาและสร้าง Memory.md</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal ดูและติดตามไฟล์ Memory.md สำหรับนักศึกษา -->
+<div id="memoryViewerModal" class="dlg-backdrop">
+  <div class="fdcard doc-preview-card" style="width:780px;">
+    <div class="modal-head">
+      <div>
+        <h3 id="memViewTitle">🧠 ไฟล์บันทึกความจำโครงการ (Memory.md)</h3>
+        <p id="memViewSub" style="font-size:12px; color:var(--sub); margin-top:2px;">
+          อัปเดตอัตโนมัติทุกครั้งที่มีการสนทนา เพื่อให้โมเดลจำบริบทได้ต่อเนื่องข้ามวัน
+        </p>
+      </div>
+      <button class="modal-close-btn" onclick="$('memoryViewerModal').classList.remove('show')">✕</button>
+    </div>
+    <div class="prev-meta" id="memViewMeta">กำลังโหลด...</div>
+    <div class="prev-body" id="memViewBody" style="max-height:55vh;"></div>
+    <div class="actions" style="margin-top:12px; display:flex; justify-content:space-between;">
+      <button class="pm-btn" onclick="refreshMemoryViewer()" style="padding:6px 12px;">🔄 ซิงค์ / รีเฟรช</button>
+      <div style="display:flex; gap:8px;">
+        <button class="fd-cancel" onclick="$('memoryViewerModal').classList.remove('show')">ปิด</button>
+        <button class="fd-save" onclick="copyMemoryContent()">📋 คัดลอกเนื้อหา</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="/app.js"></script>
 <script src="/student.js"></script>

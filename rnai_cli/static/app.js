@@ -25,6 +25,9 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+let currentSelectedIntent = '📊 วิจัยและวิเคราะห์ข้อมูล';
+let currentMemorySid = null;
+
 async function loadRecents() {
   const el = $('recents');
   if (!el) return;
@@ -33,32 +36,284 @@ async function loadRecents() {
     if (!r.ok) return;
     const list = await r.json();
     if (!Array.isArray(list)) return;
-    el.innerHTML = list.map(s =>
-      `<div class="recent ${s.id===sid?'active':''}" onclick="openSession('${s.id}')">${esc(s.title)}
-         <small>${s.count} ข้อความ · ${ago(s.updated)}</small>
-         <button class="del" title="ลบ" onclick="delSession(event,'${s.id}')">✕</button>
-       </div>`).join('');
+    el.innerHTML = list.map(s => {
+      const intentChip = s.intent
+        ? `<span class="recent-intent-chip" title="${esc(s.intent)}">${esc(s.intent.split(' ')[0] || s.intent.slice(0, 8))}</span>`
+        : '';
+      return `<div class="recent ${s.id===sid?'active':''}" onclick="openSession('${s.id}')">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:4px;">
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${esc(s.title)}</span>
+            ${intentChip}
+          </div>
+          <small>${s.count} ข้อความ · ${ago(s.updated)}</small>
+          <button class="del" title="ลบ" onclick="delSession(event,'${s.id}')">✕</button>
+        </div>`;
+    }).join('');
   } catch(e) {}
 }
 
 async function openSession(id) {
   sid = id;
   closeMobileSidebar();
-  const r = await fetch('/api/sessions/' + id); const d = await r.json();
-  $('thread').innerHTML = '';
-  d.messages.forEach(m => addMsg(m.role, m.content, m.model));
-  loadRecents(); scrollBottom();
+  try {
+    const r = await fetch('/api/sessions/' + id);
+    const d = await r.json();
+    $('thread').innerHTML = '';
+    if (d.messages && Array.isArray(d.messages)) {
+      d.messages.forEach(m => addMsg(m.role, m.content, m.model));
+    }
+    updateProjectMemoryBanner(d);
+    loadRecents();
+    scrollBottom();
+  } catch(e) {
+    console.error('Failed to open session', e);
+  }
 }
+
 async function delSession(ev, id) {
   ev.stopPropagation();
   await fetch('/api/sessions/' + id, { method:'DELETE' });
-  if (sid === id) newChat(); else loadRecents();
+  if (sid === id) {
+    sid = null;
+    const banner = $('projectMemoryBanner');
+    if (banner) banner.style.display = 'none';
+    quickStartChat();
+  } else {
+    loadRecents();
+  }
 }
+
+function updateProjectMemoryBanner(data) {
+  const banner = $('projectMemoryBanner');
+  if (!banner) return;
+  if (data && (data.intent || data.folder_path || (data.title && data.title !== 'สนทนาใหม่'))) {
+    banner.style.display = 'flex';
+    if ($('pmBannerTitle')) $('pmBannerTitle').textContent = data.title || 'โครงการ';
+    if ($('pmBannerIntent')) {
+      $('pmBannerIntent').textContent = data.intent || '🎯 ทั่วไป';
+      $('pmBannerIntent').style.display = data.intent ? 'inline-block' : 'none';
+    }
+    if ($('pmBannerFolder')) {
+      const fp = data.folder_path ? data.folder_path.replace(/^\/Users\/[^\/]+/, '~') : '-';
+      $('pmBannerFolder').textContent = '📁 ' + fp;
+      $('pmBannerFolder').title = data.folder_path || '';
+    }
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
 function newChat() {
-  sid = null;
+  openNewChatIntentModal();
+}
+
+function openNewChatIntentModal() {
+  const modal = $('newChatIntentModal');
+  if (!modal) {
+    quickStartChat();
+    return;
+  }
   closeMobileSidebar();
-  location.hash = '';
-  window.location.reload();
+
+  // รีเซ็ตค่าในฟอร์ม
+  if ($('intentProjTitle')) $('intentProjTitle').value = '';
+  if ($('intentContextText')) $('intentContextText').value = '';
+
+  const isStudent = window.location.pathname.includes('student') || document.title.includes('มสธ') || !!$('stuUploadBtn');
+  const defaultIntent = isStudent ? '🎓 ติวเตอร์และแผนการเรียนรู้' : '📊 วิจัยและวิเคราะห์ข้อมูล';
+  const defaultPrompt = isStudent
+    ? 'ช่วยวางแผนการเรียนรู้ประจำสัปดาห์ แนะนำแนวทางการอ่านหนังสือ และสรุปสาระสำคัญ'
+    : 'ช่วยอ่าน ศึกษาวิเคราะห์ คำนวณตัวเลขและสถิติจากเอกสาร พร้อมสรุปประเด็นสำคัญ';
+
+  const defaultFolder = isStudent ? '~/RnaiWorkspace/student/' : '~/RnaiWorkspace/projects/';
+  if ($('intentFolderPath')) $('intentFolderPath').value = defaultFolder;
+  if ($('intentCreateMemory')) $('intentCreateMemory').checked = true;
+
+  // ไฮไลต์การ์ดที่เลือกเริ่มต้น
+  const cards = modal.querySelectorAll('.intent-card');
+  cards.forEach(c => {
+    const text = c.textContent || '';
+    if (text.includes(defaultIntent.split(' ')[1] || defaultIntent)) {
+      c.classList.add('selected');
+    } else {
+      c.classList.remove('selected');
+    }
+  });
+  currentSelectedIntent = defaultIntent;
+  if ($('intentPromptText')) $('intentPromptText').value = defaultPrompt;
+
+  modal.classList.add('show');
+  setTimeout(() => {
+    if ($('intentProjTitle')) $('intentProjTitle').focus();
+  }, 100);
+}
+
+function selectIntentCard(cardEl, intentName, defaultPrompt) {
+  const modal = $('newChatIntentModal');
+  if (!modal) return;
+  modal.querySelectorAll('.intent-card').forEach(c => c.classList.remove('selected'));
+  if (cardEl) cardEl.classList.add('selected');
+  currentSelectedIntent = intentName;
+  if ($('intentPromptText')) $('intentPromptText').value = defaultPrompt;
+  updateIntentFolderSuggestion();
+}
+
+function updateIntentFolderSuggestion() {
+  const titleInput = $('intentProjTitle');
+  const folderInput = $('intentFolderPath');
+  if (!titleInput || !folderInput) return;
+  const title = titleInput.value.trim();
+  const isStudent = window.location.pathname.includes('student') || document.title.includes('มสธ') || !!$('stuUploadBtn');
+  const baseDir = isStudent ? '~/RnaiWorkspace/student/' : '~/RnaiWorkspace/projects/';
+
+  if (!title) {
+    folderInput.value = baseDir;
+    return;
+  }
+  const slug = title.replace(/[\\/*?:"<>|#%&{}\\$!\'=@`+]/g, '').trim().replace(/[\s_]+/g, '-');
+  folderInput.value = baseDir + (slug || 'project');
+}
+
+function closeIntentModal() {
+  const modal = $('newChatIntentModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function quickStartChat() {
+  closeIntentModal();
+  sid = null;
+  const banner = $('projectMemoryBanner');
+  if (banner) banner.style.display = 'none';
+
+  const thread = $('thread');
+  if (thread) {
+    thread.innerHTML = `
+      <div id="empty">
+        <svg width="56" height="56" viewBox="0 0 512 512" style="margin-bottom:16px"><rect width="512" height="512" rx="116" fill="#0B3945"/><path d="M196 196v160" stroke="#fff" stroke-width="62" stroke-linecap="round"/><path d="M196 300q0-104 110-104" stroke="#fff" stroke-width="62" stroke-linecap="round" fill="none"/><circle cx="382" cy="196" r="34" fill="#D77757"/></svg>
+        <h2 id="emptyTitle">คุยกับ Rnai ได้เลย</h2>
+        <p id="emptyDesc">โมเดลของคุณเอง รันบนเครื่อง ประวัติเก็บในเครื่อง</p>
+        <div class="chips" id="emptyChips"></div>
+      </div>`;
+    if (typeof renderChips === 'function') renderChips();
+  }
+  loadRecents();
+  if ($('input')) $('input').focus();
+}
+
+async function submitNewChatWithIntent() {
+  const btn = $('btnSubmitIntent');
+  const title = ($('intentProjTitle') ? $('intentProjTitle').value.trim() : '') || 'การสนทนาใหม่';
+  const intent = currentSelectedIntent || '📊 วิจัยและวิเคราะห์ข้อมูล';
+  const prompt = $('intentPromptText') ? $('intentPromptText').value.trim() : '';
+  const context = $('intentContextText') ? $('intentContextText').value.trim() : '';
+  const folder = $('intentFolderPath') ? $('intentFolderPath').value.trim() : '';
+  const createMemory = $('intentCreateMemory') ? $('intentCreateMemory').checked : true;
+  const modelName = $('model') ? $('model').value : 'rnai';
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ กำลังสร้างโครงการ...';
+  }
+
+  try {
+    const res = await fetch('/api/sessions/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: title,
+        intent: intent,
+        prompt: prompt,
+        context: context,
+        folder_path: folder,
+        model: modelName,
+        create_folder: true,
+        create_memory: createMemory
+      })
+    });
+    const data = await res.json();
+    if (!data.ok && !data.session_id) {
+      alert('ไม่สามารถสร้างเซสชันได้: ' + (data.error || 'unknown error'));
+      return;
+    }
+
+    sid = data.session_id || data.id;
+    closeIntentModal();
+
+    // ล้างหน้าต่างแชทและแสดงการ์ดต้อนรับโครงการ
+    $('thread').innerHTML = '';
+    updateProjectMemoryBanner(data);
+
+    // แสดง Welcome message ใน Thread
+    addMsg('bot',
+      `🌟 **เริ่มต้นโปรเจกต์ใหม่: ${data.title}**\n\n` +
+      `🎯 **ความจำนง/เป้าหมาย:** ${data.intent}\n` +
+      (data.folder_path ? `📁 **โฟลเดอร์เอกสาร:** \`${data.folder_path}\`\n` : '') +
+      (data.memory_path ? `🧠 **ไฟล์ความจำ:** \`${data.memory_path}\` *(อัปเดตอัตโนมัติทุกครั้งที่มีการสนทนา)*\n\n` : '') +
+      (prompt ? `💬 **คำสั่งเริ่มต้นที่ตั้งไว้:**\n> ${prompt}\n\n` : '') +
+      `ระบบบันทึกโปรเจกต์ลงใน Recents แล้ว และพร้อมให้คุณเริ่มสนทนา ลากไฟล์เอกสารมาวิเคราะห์ หรือสั่งการได้ทันที!`
+    );
+
+    // วาง prompt ลงใน input เพื่อความสะดวกในการเริ่มสนทนา
+    if ($('input') && prompt) {
+      $('input').value = prompt;
+      if (typeof autosize === 'function') autosize();
+      $('input').focus();
+    }
+
+    loadRecents();
+    scrollBottom();
+  } catch(e) {
+    alert('เกิดข้อผิดพลาดในการสร้างเซสชัน: ' + e);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🚀 เริ่มต้นการสนทนาและสร้าง Memory.md';
+    }
+  }
+}
+
+async function openMemoryViewer(sessionId) {
+  const targetSid = sessionId || sid;
+  if (!targetSid) {
+    alert('ยังไม่มีการสนทนาที่เลือกอยู่ในขณะนี้');
+    return;
+  }
+  currentMemorySid = targetSid;
+  const modal = $('memoryViewerModal');
+  if (!modal) return;
+
+  $('memViewMeta').textContent = 'กำลังโหลดเนื้อหา Memory.md...';
+  $('memViewBody').textContent = 'กำลังดึงข้อมูล...';
+  modal.classList.add('show');
+
+  try {
+    const res = await fetch(`/api/sessions/${targetSid}/memory`);
+    const data = await res.json();
+    if (!data.ok) {
+      $('memViewMeta').innerHTML = `⚠️ <span style="color:#d9534f">${esc(data.error || 'ไม่พบไฟล์ Memory.md')}</span>`;
+      $('memViewBody').textContent = '(เซสชันนี้ยังไม่มีไฟล์ Memory.md บันทึกไว้ หรือยังไม่ได้สร้างโฟลเดอร์โครงการ)';
+      return;
+    }
+    $('memViewMeta').innerHTML = `📁 ตำแหน่งไฟล์: <code>${esc(data.path)}</code> · อัปเดตล่าสุด: ${ago(data.updated)}`;
+    $('memViewBody').textContent = data.content || '(ไฟล์ว่าง)';
+  } catch(e) {
+    $('memViewMeta').textContent = 'เกิดข้อผิดพลาดในการโหลด: ' + e;
+    $('memViewBody').textContent = '';
+  }
+}
+
+async function refreshMemoryViewer() {
+  if (currentMemorySid) openMemoryViewer(currentMemorySid);
+}
+
+function copyMemoryContent() {
+  const content = $('memViewBody') ? $('memViewBody').textContent : '';
+  if (!content) return;
+  navigator.clipboard.writeText(content).then(() => {
+    alert('คัดลอกเนื้อหา Memory.md เรียบร้อยแล้ว!');
+  }).catch(() => {
+    alert('ไม่สามารถคัดลอกได้');
+  });
 }
 function fill(text){ $('input').value = text; $('input').focus(); }
 function addMsg(role, text, model) {
@@ -687,7 +942,135 @@ async function chatDirectCloud(model, text) {
   throw new Error('ไม่พบ API Key ในหน้า Settings\n\n• กรุณากดปุ่ม 🔑 Login หรือ Settings ด้านบน เพื่อวาง API Key ของ Gemini / Groq / HuggingFace');
 }
 
+/* ── Microphone / Speech-to-Text (Voice input) ── */
+let speechRecognizer = null;
+let isRecordingVoice = false;
+let voiceBaseText = '';
+
+function toggleVoiceInput() {
+  if (isRecordingVoice) {
+    stopVoiceInput();
+  } else {
+    startVoiceInput();
+  }
+}
+
+function startVoiceInput() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('เบราว์เซอร์ของคุณยังไม่รองรับ Web Speech API\nแนะนำให้ใช้งานผ่าน Google Chrome, Microsoft Edge หรือ Apple Safari เพื่อใช้งานฟังก์ชันแปลงเสียงเป็นข้อความ');
+    return;
+  }
+
+  const micBtn = $('micBtn');
+  const listeningBar = $('micListeningBar');
+  const inputEl = $('input');
+
+  try {
+    if (speechRecognizer) {
+      try { speechRecognizer.stop(); } catch(e) {}
+    }
+
+    speechRecognizer = new SpeechRecognition();
+    speechRecognizer.lang = 'th-TH'; // ภาษาไทยเป็นหลัก
+    speechRecognizer.continuous = true;
+    speechRecognizer.interimResults = true;
+    speechRecognizer.maxAlternatives = 1;
+
+    voiceBaseText = inputEl ? inputEl.value : '';
+    if (voiceBaseText && !voiceBaseText.endsWith(' ') && !voiceBaseText.endsWith('\n')) {
+      voiceBaseText += ' ';
+    }
+
+    speechRecognizer.onstart = function() {
+      isRecordingVoice = true;
+      if (micBtn) {
+        micBtn.classList.add('recording');
+        micBtn.title = 'กำลังฟังเสียง... (กดเพื่อหยุดการบันทึก)';
+      }
+      if (listeningBar) listeningBar.classList.add('active');
+    };
+
+    speechRecognizer.onresult = function(event) {
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+
+      if (inputEl) {
+        const spoken = (finalTranscript || interimTranscript).trim();
+        if (spoken) {
+          inputEl.value = voiceBaseText + spoken;
+          if (typeof autosize === 'function') autosize();
+          inputEl.scrollTop = inputEl.scrollHeight;
+        }
+      }
+    };
+
+    speechRecognizer.onerror = function(event) {
+      console.warn('Speech recognition error:', event.error);
+      if (event.error === 'not-allowed') {
+        alert('กรุณาอนุญาตการเข้าถึงไมโครโฟน (Microphone Permission) ในการตั้งค่าเบราว์เซอร์ เพื่อใช้งานการพิมพ์ด้วยเสียง');
+      }
+      stopVoiceInput();
+    };
+
+    speechRecognizer.onend = function() {
+      if (isRecordingVoice) {
+        stopVoiceInput();
+      }
+    };
+
+    speechRecognizer.start();
+  } catch (err) {
+    console.error('Failed to start speech recognition:', err);
+    stopVoiceInput();
+  }
+}
+
+function stopVoiceInput() {
+  isRecordingVoice = false;
+  const micBtn = $('micBtn');
+  const listeningBar = $('micListeningBar');
+  const inputEl = $('input');
+
+  if (micBtn) {
+    micBtn.classList.remove('recording');
+    micBtn.title = 'เปิดไมโครโฟนพูดเพื่อแปลงเป็นข้อความ (Voice-to-Text)';
+  }
+  if (listeningBar) listeningBar.classList.remove('active');
+
+  if (speechRecognizer) {
+    try {
+      speechRecognizer.stop();
+    } catch(e) {}
+    speechRecognizer = null;
+  }
+
+  if (inputEl) {
+    if (typeof autosize === 'function') autosize();
+    inputEl.focus();
+  }
+}
+
+// ทางลัดคีย์บอร์ด: Alt + M เพื่อเปิด/ปิดไมโครโฟน
+window.addEventListener('keydown', (e) => {
+  if (e.altKey && (e.key === 'm' || e.key === 'M' || e.key === 'ท')) {
+    e.preventDefault();
+    toggleVoiceInput();
+  }
+});
+
 async function send() {
+  if (isRecordingVoice) {
+    stopVoiceInput();
+  }
   if (typeof sendStudentMsg === 'function') {
     sendStudentMsg();
     return;
@@ -772,8 +1155,11 @@ function hideAll(){
   $('settings').classList.remove('show');
   $('download').classList.remove('show');
   $('ws').classList.remove('show');
+  const dv = $('docview');
+  if (dv) dv.classList.remove('show');
 }
-function showWorkspace(){ hideAll(); $('ws').classList.add('show'); loadTemplates(); loadTaskList(); }
+function showWorkspace(){ hideAll(); $('ws').classList.add('show'); loadTemplates(); loadTaskList(); loadDocuments(); }
+function showDocBox(){ hideAll(); const dv = $('docview'); if (dv) dv.classList.add('show'); loadDocuments(); }
 function showSettings(){ hideAll(); $('settings').classList.add('show'); loadConfig(); loadNetworkInfo(); }
 function showDownload(){ hideAll(); $('download').classList.add('show'); }
 function showChat(){ hideAll(); $('main').style.display='flex'; }
@@ -929,4 +1315,383 @@ async function saveKey(key){
 }
 
 loadRecents();
+loadDocumentsBadge();
 if (location.hash === '#login') { openAccount(); }
+
+/* ── Document Hub & Upload Box ── */
+let DOCS = [];
+let activePromptFile = null;
+let activePreviewDoc = null;
+
+function docIcon(ext) {
+  ext = (ext || '').toLowerCase().replace(/^\./, '');
+  if (ext === 'pdf') return { cls: 'pdf', icon: '📕' };
+  if (['doc', 'docx'].includes(ext)) return { cls: 'docx', icon: '📘' };
+  if (['xls', 'xlsx'].includes(ext)) return { cls: 'xlsx', icon: '📗' };
+  if (['csv', 'tsv'].includes(ext)) return { cls: 'csv', icon: '📊' };
+  if (['json', 'js', 'py', 'html', 'css', 'sql'].includes(ext)) return { cls: 'code', icon: '💻' };
+  return { cls: 'txt', icon: '📄' };
+}
+
+async function loadDocumentsBadge() {
+  try {
+    const r = await fetch('/api/documents');
+    if (!r.ok) return;
+    const list = await r.json();
+    DOCS = list;
+    const badge = $('docCountBadge');
+    if (badge) badge.textContent = `เอกสาร (${list.length})`;
+  } catch(e) {}
+}
+
+async function loadDocuments() {
+  try {
+    const ws = await (await fetch('/api/workspace')).json();
+    if ($('docFolderShort') && ws.dir) {
+      $('docFolderShort').textContent = homeShort(ws.dir) + '/documents';
+    }
+  } catch(e) {}
+
+  try {
+    const r = await fetch('/api/documents');
+    if (!r.ok) return;
+    DOCS = await r.json();
+    renderDocGrid(DOCS);
+    renderWsDocMini(DOCS);
+    const badge = $('docCountBadge');
+    if (badge) badge.textContent = `เอกสาร (${DOCS.length})`;
+    const stats = $('docStatsText');
+    if (stats) stats.textContent = `${DOCS.length} รายการ`;
+  } catch(e) {
+    console.error('loadDocuments error:', e);
+  }
+}
+
+function renderDocGrid(items) {
+  const grid = $('docGrid');
+  const empty = $('docEmptyMsg');
+  if (!grid) return;
+
+  if (!items.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  grid.innerHTML = items.map(d => {
+    const ic = docIcon(d.ext);
+    return `
+      <div class="doc-card" id="doc-${esc(d.relative_path)}">
+        <div class="doc-card-header">
+          <div class="doc-type-icon ${ic.cls}">${ic.icon}</div>
+          <div class="doc-info">
+            <div class="doc-name" title="${esc(d.name)}">${esc(d.name)}</div>
+            <div class="doc-meta">
+              <span>${esc(d.size_formatted)}</span>
+              <span>•</span>
+              <span>${esc(d.mtime_formatted)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="doc-excerpt">
+          ${d.preview_text ? esc(d.preview_text) : 'คลิกเพื่อดูตัวอย่างเนื้อหาหรือส่งให้โมเดลอ่านและวิเคราะห์'}
+        </div>
+
+        <div class="doc-card-actions">
+          <div class="doc-action-row">
+            <button class="doc-btn primary" onclick="quickDocAction('${esc(d.relative_path)}', 'analyze')" title="สั่งให้โมเดลเอเจนอ่าน ศึกษาวิเคราะห์ และคำนวณข้อมูล">
+              📊 วิเคราะห์ & คำนวณ
+            </button>
+            <button class="doc-btn" onclick="openDocPromptModal('${esc(d.relative_path)}', '${esc(d.name)}')" title="ปรับแต่งคำสั่งวิเคราะห์และรายงานตามสั่ง">
+              ⚙️ รายงานตามสั่ง
+            </button>
+          </div>
+          <div class="doc-action-row">
+            <button class="doc-btn" onclick="previewDoc('${esc(d.relative_path)}')" title="ดูตัวอย่างข้อความที่สกัดได้จากเอกสาร">
+              👁️ ดูตัวอย่าง
+            </button>
+            <button class="doc-btn danger icon-only" onclick="deleteDoc('${esc(d.relative_path)}', '${esc(d.name)}')" title="ลบไฟล์นี้">
+              🗑️
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderWsDocMini(items) {
+  const mini = $('wsDocMiniList');
+  if (!mini) return;
+  if (!items.length) {
+    mini.innerHTML = '<div style="font-size:12.5px;color:var(--faint);padding:6px 0;">(ยังไม่มีเอกสารในกล่อง กดเปิดกล่องเอกสารเพื่ออัปโหลด)</div>';
+    return;
+  }
+  mini.innerHTML = items.slice(0, 4).map(d => {
+    const ic = docIcon(d.ext);
+    return `
+      <div class="wsdoc-item" onclick="quickDocAction('${esc(d.relative_path)}', 'analyze')">
+        <span class="w-ic">${ic.icon}</span>
+        <span class="w-name">${esc(d.name)}</span>
+        <span class="w-sz">${esc(d.size_formatted)}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterDocList(kw) {
+  kw = (kw || '').trim().toLowerCase();
+  if (!kw) {
+    renderDocGrid(DOCS);
+    return;
+  }
+  const filtered = DOCS.filter(d => (d.name || '').toLowerCase().includes(kw) || (d.ext || '').toLowerCase().includes(kw));
+  renderDocGrid(filtered);
+}
+
+function triggerDocUpload() {
+  const inp = $('docFileInput');
+  if (inp) {
+    inp.value = '';
+    inp.click();
+  }
+}
+
+async function handleDocFileSelect(ev) {
+  const files = ev.target.files;
+  if (!files || !files.length) return;
+  await uploadFilesList(files);
+}
+
+async function uploadFilesList(files) {
+  const pBox = $('docUploadProgress');
+  const pFill = $('docProgressBarFill');
+  const pTxt = $('docProgressStatus');
+
+  if (pBox) pBox.style.display = 'block';
+
+  let done = 0;
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (pTxt) pTxt.textContent = `กำลังอัปโหลด ${file.name} (${i + 1}/${files.length})...`;
+    if (pFill) pFill.style.width = `${Math.round(((i) / files.length) * 100)}%`;
+
+    try {
+      await uploadFileDirect(file);
+      done++;
+    } catch(err) {
+      toast(`อัปโหลด ${file.name} ไม่สำเร็จ: ${err.message}`);
+    }
+  }
+
+  if (pFill) pFill.style.width = '100%';
+  if (pTxt) pTxt.textContent = `อัปโหลดเสร็จสิ้น ${done} ไฟล์!`;
+  setTimeout(() => { if (pBox) pBox.style.display = 'none'; }, 1500);
+
+  toast(`✓ อัปโหลดสำเร็จ ${done} ไฟล์`);
+  await loadDocuments();
+}
+
+function uploadFileDirect(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async function() {
+      try {
+        const base64 = reader.result;
+        const res = await fetch('/api/documents/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            content: base64,
+            is_base64: true,
+            subfolder: 'documents'
+          })
+        });
+        const d = await res.json();
+        if (d.ok) resolve(d);
+        else reject(new Error(d.error || 'upload failed'));
+      } catch(e) {
+        reject(e);
+      }
+    };
+    reader.onerror = () => reject(new Error('read file error'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/* Drag & Drop */
+let dragCounter = 0;
+window.addEventListener('dragenter', e => {
+  if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+    dragCounter++;
+    const ol = $('dragDropOverlay');
+    if (ol) ol.classList.add('active');
+  }
+});
+window.addEventListener('dragleave', e => {
+  dragCounter--;
+  if (dragCounter <= 0) {
+    dragCounter = 0;
+    const ol = $('dragDropOverlay');
+    if (ol) ol.classList.remove('active');
+  }
+});
+window.addEventListener('dragover', e => { e.preventDefault(); });
+window.addEventListener('drop', async e => {
+  e.preventDefault();
+  dragCounter = 0;
+  const ol = $('dragDropOverlay');
+  if (ol) ol.classList.remove('active');
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+    await uploadFilesList(e.dataTransfer.files);
+  }
+});
+
+function handleDocDragOver(ev) {
+  ev.preventDefault();
+  const dz = $('docDropzone');
+  if (dz) dz.classList.add('dragover');
+}
+function handleDocDragLeave(ev) {
+  const dz = $('docDropzone');
+  if (dz) dz.classList.remove('dragover');
+}
+async function handleDocDrop(ev) {
+  ev.preventDefault();
+  const dz = $('docDropzone');
+  if (dz) dz.classList.remove('dragover');
+  if (ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length) {
+    await uploadFilesList(ev.dataTransfer.files);
+  }
+}
+
+/* One-click Action & Presets */
+function quickDocAction(relPath, actionType) {
+  setMode('cowork');
+  showChat();
+
+  let prompt = '';
+  if (actionType === 'analyze') {
+    prompt = `กรุณาอ่าน ศึกษาวิเคราะห์ และคำนวณข้อมูลตัวเลข/สถิติทั้งหมดในเอกสาร \`${relPath}\` โดยละเอียด พร้อมสรุปรายงานผลวิเคราะห์เชิงลึกและการคำนวณที่ถูกต้อง`;
+  } else if (actionType === 'summary') {
+    prompt = `กรุณาอ่านและสรุปสาระสำคัญ ประเด็นหลัก และข้อคิดเห็นสำคัญจากเอกสาร \`${relPath}\` เป็นภาษาไทยที่กระชับและเข้าใจง่าย`;
+  } else if (actionType === 'report') {
+    prompt = `กรุณาจัดทำรายงานวิเคราะห์ฉบับสมบูรณ์จากเอกสาร \`${relPath}\` โดยแบ่งออกเป็น 4 ส่วนหลัก:
+1. สรุปภาพรวมและวัตถุประสงค์
+2. สาระสำคัญและผลการวิเคราะห์เชิงลึก
+3. การคำนวณตัวเลขและสถิติสำคัญ (ระบุสูตร/ที่มาตัวเลขชัดเจน)
+4. บทสรุปและข้อเสนอแนะเชิงปฏิบัติ`;
+  } else {
+    prompt = `กรุณาอ่านและศึกษาวิเคราะห์เอกสาร \`${relPath}\` อย่างละเอียด`;
+  }
+
+  $('input').value = prompt;
+  autosize();
+  send();
+}
+
+function openDocPromptModal(relPath, filename) {
+  activePromptFile = relPath;
+  const targetCode = $('docPromptTargetFile');
+  if (targetCode) targetCode.innerHTML = `เอกสารเป้าหมาย: <code>${esc(filename || relPath)}</code>`;
+  selectDocPreset('analyze');
+  $('docPromptModal').classList.add('show');
+}
+
+function selectDocPreset(preset, btnEl) {
+  if (btnEl) {
+    document.querySelectorAll('.preset-chips .pchip').forEach(b => b.classList.remove('on'));
+    btnEl.classList.add('on');
+  }
+
+  const pfile = activePromptFile || 'เอกสาร';
+  const txt = $('docPromptCustomText');
+  if (!txt) return;
+
+  if (preset === 'analyze') {
+    txt.value = `กรุณาอ่าน ศึกษาวิเคราะห์ และคำนวณข้อมูลสถิติ/ตัวเลขทั้งหมดในเอกสาร \`${pfile}\` พร้อมสรุปรายงานผลการคำนวณอย่างถูกต้องแม่นยำ`;
+  } else if (preset === 'summary') {
+    txt.value = `กรุณาอ่านและสรุปสาระสำคัญ ใจความหลัก และข้อคิดเห็นที่สำคัญจากเอกสาร \`${pfile}\``;
+  } else if (preset === 'report') {
+    txt.value = `กรุณาจัดทำรายงานวิเคราะห์ฉบับสมบูรณ์จากเอกสาร \`${pfile}\` โดยแบ่งเป็นหัวข้อ:
+1) ภาพรวมและวัตถุประสงค์
+2) ผลการวิเคราะห์เชิงลึก
+3) ข้อมูลสถิติและการคำนวณที่สำคัญ
+4) บทสรุปและข้อเสนอแนะ`;
+  } else if (preset === 'verify') {
+    txt.value = `กรุณาอ่านเอกสาร \`${pfile}\` เพื่อตรวจสอบความถูกต้องของตัวเลข สถิติ และข้อเท็จจริง ค้นหาจุดผิดพลาดหรือข้อสังเกตที่น่าสงสัย`;
+  }
+}
+
+function executeDocAgentTask() {
+  const prompt = ($('docPromptCustomText').value || '').trim();
+  if (!prompt) return;
+  $('docPromptModal').classList.remove('show');
+
+  setMode('cowork');
+  showChat();
+  $('input').value = prompt;
+  autosize();
+  send();
+}
+
+/* Preview Document */
+async function previewDoc(relPath) {
+  activePreviewDoc = relPath;
+  $('prevDocTitle').textContent = `📄 กำลังเปิด ${relPath.split('/').pop()}...`;
+  $('prevDocMeta').textContent = 'กำลังประมวลผลและสกัดเนื้อหาเอกสาร...';
+  $('prevDocBody').textContent = 'กำลังโหลด...';
+  $('docPreviewModal').classList.add('show');
+
+  try {
+    const r = await fetch('/api/documents/preview?path=' + encodeURIComponent(relPath));
+    const d = await r.json();
+    if (!d.ok) {
+      $('prevDocBody').textContent = 'ข้อผิดพลาด: ' + (d.error || 'ไม่สามารถอ่านเอกสารได้');
+      return;
+    }
+
+    $('prevDocTitle').textContent = `📄 ${d.file_name}`;
+    const stats = d.stats || {};
+    let metaTxt = `ขนาด: ${d.file_size_formatted || '-'} | ชนิด: ${d.file_ext || '-'}`;
+    if (stats.pages) metaTxt += ` | จำนวน: ${stats.pages} หน้า`;
+    if (stats.rows) metaTxt += ` | จำนวน: ${stats.rows} แถว, ${stats.columns || 0} คอลัมน์`;
+    if (stats.chars) metaTxt += ` | ความยาว: ${stats.chars.toLocaleString()} ตัวอักษร`;
+
+    $('prevDocMeta').textContent = metaTxt;
+    $('prevDocBody').textContent = d.text || '(ไม่มีข้อความที่สกัดได้)';
+  } catch(e) {
+    $('prevDocBody').textContent = 'ข้อผิดพลาดในการเชื่อมต่อ: ' + e.message;
+  }
+}
+
+function sendDocToAgentFromPreview() {
+  if (!activePreviewDoc) return;
+  $('docPreviewModal').classList.remove('show');
+  quickDocAction(activePreviewDoc, 'analyze');
+}
+
+/* Delete Document */
+async function deleteDoc(relPath, name) {
+  if (!confirm(`คุณต้องการลบเอกสาร "${name || relPath}" ใช่หรือไม่?`)) return;
+  try {
+    const r = await fetch('/api/documents/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: relPath })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast(`✓ ลบไฟล์ ${name || relPath} เรียบร้อยแล้ว`);
+      await loadDocuments();
+    } else {
+      toast('ลบไฟล์ไม่สำเร็จ: ' + (d.error || 'error'));
+    }
+  } catch(e) {
+    toast('ลบไฟล์ไม่สำเร็จ: ' + e.message);
+  }
+}
+

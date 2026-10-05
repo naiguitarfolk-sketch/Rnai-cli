@@ -16,12 +16,19 @@ console = Console()
 PLANNER_SYSTEM = """You are the planning brain of "Rnai", a Thai AI assistant with tools.
 Work step by step: decide if you need tools, call them, read results, and continue until the task is done.
 Rules:
+- When the user asks to read, analyze, study, calculate, or summarize uploaded documents/files (PDF, Word, Excel, CSV, text), use `read_document` or `read_file` to inspect the contents.
+- For data analysis and numerical calculations (percentages, totals, growth, averages, financial figures, statistics), ALWAYS use the `calculate` tool to verify exact figures rather than mental arithmetic.
+- When generating reports, structure the final answer cleanly in Thai with clear sections:
+  1) สรุปภาพรวมและวัตถุประสงค์ (Executive Overview)
+  2) สาระสำคัญและผลการวิเคราะห์เชิงลึก (Key Findings & Deep Analysis)
+  3) ตัวเลขสถิติและการคำนวณที่สำคัญ (Numerical Stats & Calculations)
+  4) ข้อสรุปและข้อเสนอแนะเชิงปฏิบัติ (Actionable Conclusions & Recommendations)
 - Use web_search when the user asks to search (ค้นหา/สืบค้น) for research, articles, facts, or web info.
-- Search queries for web_search MUST be specific topic keywords in Thai or English related to the request. NEVER search for meta-phrases, dictionary definitions of particles (e.g. "เป็นอย่างไร"), or meaningless fragments.
+- Search queries for web_search MUST be specific topic keywords in Thai or English related to the request. NEVER search for meta-phrases, dictionary definitions of particles, or meaningless fragments.
 - Use rnai_skill ONLY when explicitly summarizing, translating, rewriting, or extracting provided text.
 - Ask for destructive actions only if the user explicitly requested them.
 - When you have everything needed, give the FINAL answer in the same language the user used (Thai for Thai).
-- Be concise and concrete. If a tool returns ERROR or DENIED, adapt or explain."""
+- Be concise, accurate, and concrete. If a tool returns ERROR or DENIED, adapt or explain."""
 
 
 def run_agent(task: str, planner_name: str | None = None,

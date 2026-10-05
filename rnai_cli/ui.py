@@ -4,6 +4,7 @@
 ดีไซน์: minimal สไตล์ ollama.com — พื้นขาว เส้นบาง เนื้อหากลางจอ
 """
 from __future__ import annotations
+import base64
 import json
 import socket
 import threading
@@ -12,7 +13,7 @@ import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import config, history
+from . import config, history, doc_engine
 from . import templates as tpl
 from . import worker as wk
 from .providers import get_provider
@@ -367,6 +368,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(wk.load_tasks())
         elif self.path == "/api/sessions":
             self._json(history.list_sessions())
+        elif self.path.startswith("/api/sessions/") and self.path.endswith("/memory"):
+            sid = self.path[len("/api/sessions/"):].split("/memory")[0].strip("/")
+            self._json(history.get_memory_content(sid))
         elif self.path.startswith("/api/sessions/"):
             d = history.load(self.path.rsplit("/", 1)[1])
             self._json(d if d else {"error": "not found"}, 200 if d else 404)
@@ -380,6 +384,16 @@ class Handler(BaseHTTPRequestHandler):
                 "email": config.get("RNAI_IO_EMAIL"),
                 "credits": creds,
             })
+        elif self.path == "/api/documents":
+            self._json(doc_engine.list_documents())
+        elif self.path.startswith("/api/documents/preview"):
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            target = (q.get("path") or [""])[0]
+            if not target:
+                return self._json({"ok": False, "error": "ไม่ได้ระบุ path เอกสาร"})
+            res = doc_engine.extract_document_text(target)
+            self._json(res)
         else:
             self._json({"error": "not found"}, 404)
 
@@ -390,10 +404,106 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path.startswith("/api/tasks/"):
             ok = wk.remove_task(self.path.rsplit("/", 1)[1])
             self._json({"ok": ok})
+        elif self.path.startswith("/api/documents/"):
+            from urllib.parse import unquote
+            rel_path = unquote(self.path[len("/api/documents/"):])
+            ok = doc_engine.delete_document(rel_path)
+            self._json({"ok": ok})
         else:
             self._json({"error": "not found"}, 404)
 
     def do_POST(self):
+        if self.path in ("/api/upload", "/api/documents/upload"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                raw_body = self.rfile.read(length)
+                content_type = self.headers.get("Content-Type", "")
+
+                if "application/json" in content_type:
+                    req = json.loads(raw_body.decode("utf-8"))
+                    filename = (req.get("filename") or req.get("name") or "document.txt").strip()
+                    content_str = req.get("content") or ""
+                    subfolder = (req.get("subfolder") or "documents").strip()
+
+                    # รองรับ data URL เช่น data:application/pdf;base64,xxxx
+                    if "," in content_str and ";base64" in content_str.split(",", 1)[0]:
+                        content_str = content_str.split(",", 1)[1]
+
+                    try:
+                        file_bytes = base64.b64decode(content_str)
+                    except Exception:
+                        file_bytes = content_str.encode("utf-8")
+
+                    saved = doc_engine.save_uploaded_document(filename, file_bytes, target_subfolder=subfolder)
+                    return self._json(saved)
+
+                # Direct binary upload
+                filename = self.headers.get("X-Filename", "document.bin")
+                from urllib.parse import unquote
+                filename = unquote(filename)
+                saved = doc_engine.save_uploaded_document(filename, raw_body, target_subfolder="documents")
+                return self._json(saved)
+            except Exception as e:
+                return self._json({"ok": False, "error": str(e)}, 500)
+
+        if self.path == "/api/documents/delete":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                req = json.loads(self.rfile.read(length))
+                path = (req.get("path") or "").strip()
+                ok = doc_engine.delete_document(path)
+                return self._json({"ok": ok})
+            except Exception as e:
+                return self._json({"ok": False, "error": str(e)}, 500)
+
+        if self.path == "/api/documents/calculate":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                req = json.loads(self.rfile.read(length))
+                expr = (req.get("expression") or "").strip()
+                res = doc_engine.calculate(expr)
+                return self._json(res)
+            except Exception as e:
+                return self._json({"ok": False, "error": str(e)}, 500)
+
+        if self.path == "/api/sessions/create":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                req = json.loads(self.rfile.read(length))
+                title = (req.get("title") or "สนทนาใหม่").strip()
+                intent = (req.get("intent") or "").strip()
+                prompt = (req.get("prompt") or "").strip()
+                context = (req.get("context") or "").strip()
+                folder_path = (req.get("folder_path") or "").strip()
+                model = req.get("model") or "rnai"
+                create_folder = bool(req.get("create_folder", True))
+                create_memory = bool(req.get("create_memory", True))
+
+                res = history.create_session_with_intent(
+                    title=title,
+                    intent=intent,
+                    prompt=prompt,
+                    context=context,
+                    folder_path=folder_path,
+                    model=model,
+                    create_folder=create_folder,
+                    create_memory=create_memory,
+                )
+                if res.get("folder_path"):
+                    try:
+                        cfg = config.load()
+                        projs = cfg.get("PROJECTS", [])
+                        fp = res["folder_path"]
+                        if fp not in projs:
+                            projs.insert(0, fp)
+                            cfg["PROJECTS"] = projs
+                            config.save(cfg)
+                    except Exception:
+                        pass
+                return self._json(res)
+            except Exception as e:
+                return self._json({"ok": False, "error": str(e)}, 500)
+
         if self.path == "/api/projects":
             try:
                 from pathlib import Path as _P
@@ -532,6 +642,19 @@ class Handler(BaseHTTPRequestHandler):
             sid = req.get("session_id") or history.new_session(text, model_name)
             history.append(sid, "user", text)
 
+            sess_data = history.load(sid) or {}
+            intent_ctx = ""
+            if sess_data.get("intent") or sess_data.get("prompt") or sess_data.get("context"):
+                intent_ctx = f"[บริบทโครงการและ Memory.md ของผู้ใช้]\n- โครงการ: {sess_data.get('title')}\n"
+                if sess_data.get("intent"):
+                    intent_ctx += f"- ความจำนง/เป้าหมาย: {sess_data['intent']}\n"
+                if sess_data.get("prompt"):
+                    intent_ctx += f"- คำสั่ง/ความต้องการเฉพาะ: {sess_data['prompt']}\n"
+                if sess_data.get("context"):
+                    intent_ctx += f"- บริบทโครงการ: {sess_data['context']}\n"
+                if sess_data.get("folder_path"):
+                    intent_ctx += f"- โฟลเดอร์จัดเก็บเอกสาร: {sess_data['folder_path']}\n"
+
             if model_name.split("/")[0].lower() == "rnai":
                 from . import auth
                 # บทสนทนาก่อนหน้า (ไม่รวมข้อความล่าสุดที่เพิ่ง append ข้างบน) —
@@ -541,6 +664,9 @@ class Handler(BaseHTTPRequestHandler):
                     [{"role": m["role"], "content": m["content"]} for m in prior["messages"][:-1]]
                     if prior else []
                 )
+                if intent_ctx and not any(m.get("content", "").startswith("[บริบทโครงการ") for m in prior_msgs):
+                    prior_msgs.insert(0, {"role": "system", "content": intent_ctx.strip()})
+
                 t0 = time.time()
                 try:
                     pdata = auth.platform_chat(text, history=prior_msgs)
@@ -557,6 +683,9 @@ class Handler(BaseHTTPRequestHandler):
             # ประกอบ messages จากประวัติทั้งหมดของ session (โมเดล BYOK อื่นๆ)
             data = history.load(sid)
             msgs = [{"role": m["role"], "content": m["content"]} for m in data["messages"]]
+            if intent_ctx and not any(m.get("content", "").startswith("[บริบทโครงการ") for m in msgs):
+                msgs.insert(0, {"role": "system", "content": intent_ctx.strip()})
+
             p = get_provider(model_name)
 
             resp = p.chat(msgs, max_tokens=1500, timeout=200)

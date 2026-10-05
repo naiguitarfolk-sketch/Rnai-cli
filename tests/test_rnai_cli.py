@@ -90,6 +90,51 @@ class TestHistory(unittest.TestCase):
         self.assertTrue(deleted)
         self.assertIsNone(hist.load(sid))
 
+    def test_intent_and_memory_sync(self):
+        proj_dir = Path(self.temp_dir) / "projects" / "test_proj"
+        res = hist.create_session_with_intent(
+            title="โปรเจกต์วิเคราะห์ข้อมูล",
+            intent="📊 วิเคราะห์ข้อมูลและสถิติ",
+            prompt="วิเคราะห์ยอดขายไตรมาสที่ 1",
+            context="ข้อมูลจากไฟล์ยอดขายปี 2026",
+            folder_path=str(proj_dir),
+            model="rnai",
+            create_folder=True,
+            create_memory=True,
+        )
+        sid = res["session_id"]
+        self.assertTrue(proj_dir.exists())
+        mem_file = proj_dir / "Memory.md"
+        self.assertTrue(mem_file.exists())
+
+        # ตรวจสอบเนื้อหาเริ่มต้นของ Memory.md
+        initial_content = mem_file.read_text(encoding="utf-8")
+        self.assertIn("โปรเจกต์วิเคราะห์ข้อมูล", initial_content)
+        self.assertIn("วิเคราะห์ยอดขายไตรมาสที่ 1", initial_content)
+        self.assertIn("Memory Log", initial_content)
+
+        # จำลองการสนทนา: append ข้อความเพื่อทดสอบการ sync Memory.md อัตโนมัติทุกครั้ง
+        hist.append(sid, "user", "คำนวณผลรวมยอดขายให้หน่อย")
+        hist.append(sid, "assistant", "ยอดขายรวมคือ 1,250,000 บาท")
+
+        updated_content = mem_file.read_text(encoding="utf-8")
+        self.assertIn("คำนวณผลรวมยอดขายให้หน่อย", updated_content)
+        self.assertIn("1,250,000", updated_content)
+        self.assertIn("2 ข้อความ", updated_content)
+
+        # ทดสอบ get_memory_content
+        mem_data = hist.get_memory_content(sid)
+        self.assertTrue(mem_data["ok"])
+        self.assertIn("1,250,000", mem_data["content"])
+
+        # ทดสอบ list_sessions มี metadata ครบถ้วน
+        sessions = hist.list_sessions()
+        matched = [s for s in sessions if s["id"] == sid]
+        self.assertEqual(len(matched), 1)
+        self.assertEqual(matched[0]["intent"], "📊 วิเคราะห์ข้อมูลและสถิติ")
+        self.assertEqual(matched[0]["folder_path"], str(proj_dir))
+
+
 
 class TestTemplates(unittest.TestCase):
     def test_templates_integrity(self):

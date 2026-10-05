@@ -59,10 +59,25 @@ TOOL_SCHEMAS = [
     }},
     {"type": "function", "function": {
         "name": "read_file",
-        "description": "Read a text file. Relative paths resolve inside the workspace folder. Returns up to ~15000 chars.",
+        "description": "Read a text or document file. Relative paths resolve inside the workspace folder. Automatically handles PDF, Word, Excel, CSV, and text files. Returns up to ~25000 chars.",
         "parameters": {"type": "object", "properties": {
             "path": {"type": "string", "description": "Path (relative = inside workspace)"},
         }, "required": ["path"]},
+    }},
+    {"type": "function", "function": {
+        "name": "read_document",
+        "description": "Read, parse, and analyze document files including PDF, Word (.docx), Excel (.xlsx), CSV, and text. Extracts full text, tables, and statistics. Use this whenever the user asks to read, analyze, study, or summarize an uploaded document.",
+        "parameters": {"type": "object", "properties": {
+            "path": {"type": "string", "description": "Document file path (relative to workspace or full path)"},
+            "page_range": {"type": "string", "description": "Optional page range for PDF (e.g. '1-5', '10')"},
+        }, "required": ["path"]},
+    }},
+    {"type": "function", "function": {
+        "name": "calculate",
+        "description": "Accurately calculate mathematical and statistical expressions (e.g. 'sum([100, 250, 320])', 'mean([10, 20, 30])', 'growth(500, 750)', 'pct(45, 200)', '15000 * 0.07'). ALWAYS use this tool to calculate numbers, percentages, totals, and financial metrics accurately for reports instead of guessing arithmetic in your head.",
+        "parameters": {"type": "object", "properties": {
+            "expression": {"type": "string", "description": "Mathematical formula, statistics expression, or percentage calculation"},
+        }, "required": ["expression"]},
     }},
     {"type": "function", "function": {
         "name": "write_file",
@@ -154,16 +169,39 @@ def make_dir(path: str) -> str:
     return f"OK: created folder {p}"
 
 
+def read_document(path: str, page_range: str = "") -> str:
+    from . import doc_engine
+    p = resolve_path(path)
+    res = doc_engine.extract_document_text(p, page_range=page_range)
+    if not res.get("ok"):
+        return f"ERROR: {res.get('error')}"
+    return res.get("text", "")
+
+
+def calculate(expression: str) -> str:
+    from . import doc_engine
+    res = doc_engine.calculate(expression)
+    if not res.get("ok"):
+        return f"ERROR: {res.get('error')}"
+    return f"OK: {res.get('expression')} = {res.get('formatted')} (ผลลัพธ์ตัวเลข: {res.get('result')})"
+
+
 def read_file(path: str) -> str:
     p = resolve_path(path)
     if not p.exists():
         return f"ERROR: file not found: {p}"
+    
+    # ถ้าเป็นไฟล์เอกสารประเภทต่างๆ (PDF, Word, Excel, CSV) ให้ใช้ doc_engine สกัดข้อความและตาราง
+    doc_exts = {".pdf", ".docx", ".doc", ".xlsx", ".xls", ".csv", ".tsv"}
+    if p.suffix.lower() in doc_exts:
+        return read_document(path)
+
     try:
         text = p.read_text(errors="replace")
     except Exception as e:
         return f"ERROR: {e}"
-    if len(text) > 15000:
-        return text[:15000] + f"\n...[truncated, total {len(text)} chars]"
+    if len(text) > 25000:
+        return text[:25000] + f"\n...[truncated, total {len(text)} chars]"
     return text
 
 
@@ -254,6 +292,8 @@ IMPLEMENTATIONS = {
     "list_dir": list_dir,
     "make_dir": make_dir,
     "read_file": read_file,
+    "read_document": read_document,
+    "calculate": calculate,
     "write_file": write_file,
     "run_command": run_command,
     "rnai_skill": rnai_skill,
