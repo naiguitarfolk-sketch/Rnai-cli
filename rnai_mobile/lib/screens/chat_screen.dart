@@ -349,53 +349,82 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    _currentSession?.title ?? 'Rnai Mobile Assistant',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(
+                'assets/icon-128.png',
+                width: 24,
+                height: 24,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _currentSession?.title ?? 'Rnai',
+                          style: TextStyle(
+                            fontSize: _currentSession == null ? 18 : 15,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: _currentSession == null ? -0.4 : 0,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (widget.apiService.isStudentMode) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withAlpha(30),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: const Text(
+                            'STUDENT',
+                            style: TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ),
-                if (widget.apiService.isStudentMode) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent.withAlpha(30),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      'STUDENT',
+                  if (_currentSession != null)
+                    Row(
+                      children: [
+                        Icon(currentIntent.icon, size: 11, color: currentIntent.color),
+                        const SizedBox(width: 4),
+                        Text(
+                          currentIntent.label,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: currentIntent.color,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Text(
+                      'AI Workspace & Memory',
                       style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.accent,
+                        fontSize: 10.5,
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
                       ),
                     ),
-                  ),
-                ],
-              ],
-            ),
-            if (_currentSession != null)
-              Row(
-                children: [
-                  Icon(currentIntent.icon, size: 12, color: currentIntent.color),
-                  const SizedBox(width: 4),
-                  Text(
-                    currentIntent.label,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: currentIntent.color,
-                    ),
-                  ),
                 ],
               ),
+            ),
           ],
         ),
         actions: [
@@ -457,18 +486,13 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                   ),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: avatarColor,
-                        child: Text(
-                          _userProfile.name.isNotEmpty
-                              ? _userProfile.name.characters.first.toUpperCase()
-                              : 'U',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          'assets/icon-128.png',
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -478,25 +502,36 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                           children: [
                             Row(
                               children: [
-                                Flexible(
+                                const Text(
+                                  'Rnai',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    letterSpacing: -0.4,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white24,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
                                   child: Text(
                                     _userProfile.name,
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
                                     ),
+                                    maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                const SizedBox(width: 4),
-                                const Icon(
-                                  Icons.edit_note,
-                                  color: Colors.white70,
-                                  size: 16,
-                                ),
                               ],
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               _userProfile.role.isNotEmpty
                                   ? _userProfile.role
@@ -520,6 +555,11 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                             ),
                           ],
                         ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Colors.white54,
+                        size: 20,
                       ),
                     ],
                   ),
@@ -805,7 +845,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildEmptyState() {
-    final avatarColor = _avatarColors[_userProfile.avatarIndex % _avatarColors.length];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Center(
       child: SingleChildScrollView(
@@ -814,20 +854,66 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 68,
-              height: 68,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: avatarColor.withAlpha(30),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withAlpha(45),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-              child: Icon(Icons.forum_outlined, size: 34, color: avatarColor),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Image.asset(
+                  'assets/icon-256.png',
+                  width: 72,
+                  height: 72,
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
             const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Rnai',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withAlpha(25),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'AI',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
             Text(
               _userProfile.name.startsWith('คุณ')
                   ? 'สวัสดีครับ ${_userProfile.name}'
                   : 'สวัสดีครับคุณ ${_userProfile.name}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.grey[300] : Colors.grey[800],
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
