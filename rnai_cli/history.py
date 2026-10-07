@@ -75,7 +75,7 @@ def sync_memory_file(session_id: str) -> Path | None:
     msgs = data.get("messages", [])
 
     lines = [
-        f"# 🧠 Project Memory: {title}",
+        f"# Project Memory: {title}",
         "",
         f"> **Session ID:** `{session_id}`  ",
         f"> **สร้างเมื่อ:** {created_str}  ",
@@ -85,7 +85,7 @@ def sync_memory_file(session_id: str) -> Path | None:
         "",
         "---",
         "",
-        "## 🎯 ความจำนงและเป้าหมาย (Intent & Objectives)",
+        "## ความจำนงและเป้าหมาย (Intent & Objectives)",
         f"- **ความจำนงหลัก:** {intent or 'ทั่วไป / สนทนาและวิเคราะห์ตามบริบท'}",
     ]
 
@@ -97,16 +97,16 @@ def sync_memory_file(session_id: str) -> Path | None:
 
     lines.extend([
         "",
-        "## 📋 บริบทและข้อกำหนดของโครงการ (Project Context & Guidelines)",
+        "## บริบทและข้อกำหนดของโครงการ (Project Context & Guidelines)",
         context if context else "(ยังไม่ได้ระบุบริบทเฉพาะ - อ้างอิงจากบทสนทนาและการวิเคราะห์ข้อมูล)",
         "",
-        "## 📁 แหล่งจัดเก็บเอกสารและผลลัพธ์ (Document Storage)",
+        "## แหล่งจัดเก็บเอกสารและผลลัพธ์ (Document Storage)",
         f"- **โฟลเดอร์หลัก:** `{folder_path_str or str(mem_path.parent)}`",
         f"- **ไฟล์บันทึกความจำ:** `{mem_path}`",
         "",
         "---",
         "",
-        "## 💬 บันทึกความจำและการสนทนา (Conversation & Memory Log)",
+        "## บันทึกความจำและการสนทนา (Conversation & Memory Log)",
         "*ไฟล์นี้ถูกบันทึกและอัปเดตโดยอัตโนมัติทุกครั้งที่มีการสนทนา เพื่อให้ AI และผู้ใช้จำบริบทงานได้ต่อเนื่องข้ามวัน*",
         "",
         f"- **จำนวนข้อความทั้งหมด:** {len(msgs)} ข้อความ",
@@ -118,7 +118,7 @@ def sync_memory_file(session_id: str) -> Path | None:
         lines.append("### บันทึกสรุปการสนทนาตามลำดับ (Timeline Log):")
         lines.append("")
         for idx, m in enumerate(msgs, 1):
-            role_badge = "👤 ผู้ใช้ (User)" if m.get("role") == "user" else f"🤖 ผู้ช่วย AI ({m.get('model') or model})"
+            role_badge = "ผู้ใช้ (User)" if m.get("role") == "user" else f"ผู้ช่วย AI ({m.get('model') or model})"
             msg_time = _format_time(m.get("ts", time.time()))
             content = m.get("content", "").strip()
             # ตัดข้อความยาวเกินไปในตาราง memory log ไม่ให้ไฟล์บวมเกิน แต่ยังคงข้อความหลัก

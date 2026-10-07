@@ -62,6 +62,14 @@ class _MemoryViewerSheetState extends State<MemoryViewerSheet> {
     );
   }
 
+  String _sanitizeForDisplay(String text) {
+    if (text.isEmpty) return text;
+    // ลบอิโมจิที่ทำให้ iOS CoreText สลับฟอนต์จนภาษาไทยกลายเป็น [?]
+    return text
+        .replaceAll(RegExp(r'[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]', unicode: true), '')
+        .replaceAll(RegExp(r'(#+)\s+'), r'$1 ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -222,7 +230,7 @@ class _MemoryViewerSheetState extends State<MemoryViewerSheet> {
                             ),
                           )
                         : Markdown(
-                            data: _memoryContent,
+                            data: _sanitizeForDisplay(_memoryContent),
                             padding: const EdgeInsets.all(18),
                             selectable: true,
                             styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(

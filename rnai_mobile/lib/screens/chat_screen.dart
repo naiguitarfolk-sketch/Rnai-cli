@@ -332,6 +332,14 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     return parts.isNotEmpty ? parts.last : path;
   }
 
+  String _cleanMarkdownContent(String text) {
+    if (text.isEmpty) return text;
+    // ป้องกัน iOS CoreText สลับฟอนต์เป็น AppleColorEmoji บนหัวข้อภาษาไทย
+    return text
+        .replaceAll(RegExp(r'([#]{1,6}\s*)[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*', unicode: true), r'$1')
+        .replaceAll(RegExp(r'[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]', unicode: true), '');
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -910,12 +918,28 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                     )
                   else
                     MarkdownBody(
-                      data: msg.content,
+                      data: _cleanMarkdownContent(msg.content),
                       selectable: true,
                       styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
                         p: TextStyle(
                           fontSize: 13.5,
                           color: isDark ? Colors.white70 : Colors.black87,
+                          fontFamilyFallback: AppTheme.thaiFontFallbacks,
+                        ),
+                        h1: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontFamilyFallback: AppTheme.thaiFontFallbacks,
+                        ),
+                        h2: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontFamilyFallback: AppTheme.thaiFontFallbacks,
+                        ),
+                        h3: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontFamilyFallback: AppTheme.thaiFontFallbacks,
+                        ),
+                        listBullet: const TextStyle(
+                          fontFamilyFallback: AppTheme.thaiFontFallbacks,
                         ),
                         code: TextStyle(
                           backgroundColor: isDark ? Colors.black38 : const Color(0xFFE2E8F0),
